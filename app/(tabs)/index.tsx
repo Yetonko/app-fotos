@@ -4,16 +4,12 @@ import * as MediaLibrary from 'expo-media-library';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-
-type FotoInfo = {
-  id: string;
-  fecha: string;
-};
+import { agruparPorTiempo, GrupoFotos } from '@/lib/agrupar';
 
 export default function HomeScreen() {
   const [status, setStatus] = useState('Pidiendo permiso...');
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
-  const [fotos, setFotos] = useState<FotoInfo[]>([]);
+  const [grupos, setGrupos] = useState<GrupoFotos[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -28,17 +24,20 @@ export default function HomeScreen() {
 
       const resultado = await MediaLibrary.getAssetsAsync({
         mediaType: 'photo',
-        first: 15,
+        first: 200,
         sortBy: [[MediaLibrary.SortBy.creationTime, false]],
       });
 
-      const fotosConFecha = resultado.assets.map((asset) => ({
+      const fotos = resultado.assets.map((asset) => ({
         id: asset.id,
-        fecha: new Date(asset.creationTime).toLocaleString('es-ES'),
+        creationTime: asset.creationTime,
       }));
 
+      const gruposCalculados = agruparPorTiempo(fotos);
+      const soloRafagas = gruposCalculados.filter((g) => g.fotos.length > 1);
+
       setTotalFotos(resultado.totalCount);
-      setFotos(fotosConFecha);
+      setGrupos(soloRafagas);
       setStatus('Listo');
     })();
   }, []);
@@ -49,15 +48,17 @@ export default function HomeScreen() {
       <ThemedText style={styles.status}>{status}</ThemedText>
       {totalFotos !== null && (
         <ThemedText type="subtitle" style={styles.subtitulo}>
-          Total: {totalFotos} fotos · Mostrando las 15 mas recientes
+          Analizadas las 200 mas recientes de {totalFotos} · {grupos.length} rafagas detectadas
         </ThemedText>
       )}
       <FlatList
-        data={fotos}
-        keyExtractor={(item) => item.id}
+        data={grupos}
+        keyExtractor={(_, index) => `grupo-${index}`}
         style={styles.lista}
-        renderItem={({ item }) => (
-          <ThemedText style={styles.item}>{item.fecha}</ThemedText>
+        renderItem={({ item, index }) => (
+          <ThemedText style={styles.item}>
+            Grupo {index + 1}: {item.fotos.length} fotos ({new Date(item.fotos[0].creationTime).toLocaleTimeString('es-ES')} - {new Date(item.fotos[item.fotos.length - 1].creationTime).toLocaleTimeString('es-ES')})
+          </ThemedText>
         )}
       />
     </ThemedView>
