@@ -38,6 +38,14 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "app-fotos necesita acceder a tus fotos para agruparlas y ayudarte a elegir las mejores.",
+          "savePhotosPermission": "app-fotos necesita guardar cambios en tus fotos.",
+          "isAccessMediaLocationEnabled": false
+        }
       ]
     ],
     "experiments": {
