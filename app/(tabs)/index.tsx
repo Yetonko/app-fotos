@@ -5,11 +5,16 @@ import * as MediaLibrary from 'expo-media-library';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { agruparPorTiempo, GrupoFotos } from '@/lib/agrupar';
+import { calcularHash, distanciaHamming } from '@/lib/hash';
+
+type GrupoConDistancias = GrupoFotos & {
+  distancias: number[];
+};
 
 export default function HomeScreen() {
   const [status, setStatus] = useState('Pidiendo permiso...');
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
-  const [grupos, setGrupos] = useState<GrupoFotos[]>([]);
+  const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -37,7 +42,26 @@ export default function HomeScreen() {
       const soloRafagas = gruposCalculados.filter((g) => g.fotos.length > 1);
 
       setTotalFotos(resultado.totalCount);
-      setGrupos(soloRafagas);
+      setStatus(`Calculando huellas visuales de ${soloRafagas.length} rafagas...`);
+
+      const gruposConDistancias: GrupoConDistancias[] = [];
+
+      for (const grupo of soloRafagas) {
+        const hashes: string[] = [];
+        for (const foto of grupo.fotos) {
+          const hash = await calcularHash(foto.id);
+          hashes.push(hash);
+        }
+
+        const distancias: number[] = [];
+        for (let i = 1; i < hashes.length; i++) {
+          distancias.push(distanciaHamming(hashes[i - 1], hashes[i]));
+        }
+
+        gruposConDistancias.push({ ...grupo, distancias });
+      }
+
+      setGrupos(gruposConDistancias);
       setStatus('Listo');
     })();
   }, []);
@@ -48,7 +72,7 @@ export default function HomeScreen() {
       <ThemedText style={styles.status}>{status}</ThemedText>
       {totalFotos !== null && (
         <ThemedText type="subtitle" style={styles.subtitulo}>
-          Analizadas las 200 mas recientes de {totalFotos} · {grupos.length} rafagas detectadas
+          Analizadas las 200 mas recientes de {totalFotos} · {grupos.length} rafagas
         </ThemedText>
       )}
       <FlatList
@@ -57,7 +81,7 @@ export default function HomeScreen() {
         style={styles.lista}
         renderItem={({ item, index }) => (
           <ThemedText style={styles.item}>
-            Grupo {index + 1}: {item.fotos.length} fotos ({new Date(item.fotos[0].creationTime).toLocaleTimeString('es-ES')} - {new Date(item.fotos[item.fotos.length - 1].creationTime).toLocaleTimeString('es-ES')})
+            Grupo {index + 1}: {item.fotos.length} fotos · distancias: {item.distancias.join(', ')}
           </ThemedText>
         )}
       />
