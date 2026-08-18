@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
+import { useLocalSearchParams } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -12,16 +13,35 @@ import {
   FotoCandidata,
 } from '@/lib/torneo';
 
-// Datos de prueba temporales — más adelante esto vendrá de un grupo real.
+// Datos de prueba: se usan solo si se entra a esta pantalla sin pasar
+// candidatas reales por parámetro (ej. desde el botón "Probar selección").
 const CANDIDATAS_PRUEBA: FotoCandidata[] = [
   { id: '1', uri: 'https://picsum.photos/seed/foto1/400/400' },
   { id: '2', uri: 'https://picsum.photos/seed/foto2/400/400' },
   { id: '3', uri: 'https://picsum.photos/seed/foto3/400/400' },
 ];
 
+function obtenerCandidatasIniciales(candidatasParam: string | string[] | undefined): FotoCandidata[] {
+  if (!candidatasParam) {
+    return CANDIDATAS_PRUEBA;
+  }
+  const valor = Array.isArray(candidatasParam) ? candidatasParam[0] : candidatasParam;
+  try {
+    const parseadas = JSON.parse(valor) as FotoCandidata[];
+    if (Array.isArray(parseadas) && parseadas.length > 0) {
+      return parseadas;
+    }
+    return CANDIDATAS_PRUEBA;
+  } catch {
+    return CANDIDATAS_PRUEBA;
+  }
+}
+
 export default function SeleccionScreen() {
+  const { candidatas: candidatasParam } = useLocalSearchParams<{ candidatas?: string }>();
+
   const [estado, setEstado] = useState<EstadoTorneo>(() =>
-    iniciarTorneo(CANDIDATAS_PRUEBA)
+    iniciarTorneo(obtenerCandidatasIniciales(candidatasParam))
   );
 
   const pareja = parejaActual(estado);
@@ -79,6 +99,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 20,
+    paddingBottom: 40,
     alignItems: 'center',
   },
   titulo: {

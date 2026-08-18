@@ -10,10 +10,12 @@ import { calcularHash, distanciaHamming } from '@/lib/hash';
 import { calcularNitidez, esBorrosa } from '@/lib/nitidez';
 import { Image } from 'expo-image';
 
+type CandidataConUri = { id: string; uri: string; nitidez: number };
+
 type GrupoConDistancias = GrupoFotos & {
   distancias: number[];
-  candidatas: { id: string; nitidez: number }[];
-  descartadas: { id: string; nitidez: number }[];
+  candidatas: CandidataConUri[];
+  descartadas: CandidataConUri[];
 };
 type ResultadoNitidez = {
   id: string;
@@ -57,6 +59,10 @@ export default function HomeScreen() {
         sortBy: [[MediaLibrary.SortBy.creationTime, false]],
       });
 
+      // Mapa id -> uri para poder recuperar el uri de cada foto más adelante,
+      // ya que agruparPorTiempo solo trabaja con id y creationTime.
+      const uriPorId = new Map(resultado.assets.map((asset) => [asset.id, asset.uri]));
+
       const fotos = resultado.assets.map((asset) => ({
         id: asset.id,
         creationTime: asset.creationTime,
@@ -88,14 +94,15 @@ export default function HomeScreen() {
           distancias.push(distanciaHamming(hashes[i - 1], hashes[i]));
         }
 
-       const candidatas: { id: string; nitidez: number }[] = [];
-        const descartadasDetalle: { id: string; nitidez: number }[] = [];
+       const candidatas: CandidataConUri[] = [];
+        const descartadasDetalle: CandidataConUri[] = [];
         for (const foto of grupo.fotos) {
           const nitidez = await calcularNitidez(foto.id);
+          const uri = uriPorId.get(foto.id) ?? '';
           if (esBorrosa(nitidez)) {
-            descartadasDetalle.push({ id: foto.id, nitidez });
+            descartadasDetalle.push({ id: foto.id, uri, nitidez });
           } else {
-            candidatas.push({ id: foto.id, nitidez });
+            candidatas.push({ id: foto.id, uri, nitidez });
           }
         }
 
@@ -115,6 +122,14 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  const seleccionarGrupo = (grupo: GrupoConDistancias) => {
+    const candidatasParaTorneo = grupo.candidatas.map((c) => ({ id: c.id, uri: c.uri }));
+    router.push({
+      pathname: '/seleccion',
+      params: { candidatas: JSON.stringify(candidatasParaTorneo) },
+    });
+  };
+
   return (
     <ThemedView style={styles.container}>
 <ThemedText type="title" style={styles.titulo}>app-fotos</ThemedText>
@@ -132,11 +147,18 @@ export default function HomeScreen() {
         keyExtractor={(_, index) => `grupo-${index}`}
         style={styles.lista}
         renderItem={({ item, index }) => (
-        <ThemedText style={styles.item}>
-            Grupo {index + 1}: {item.fotos.length} fotos · distancias: {item.distancias.join(', ')} · {item.candidatas.length} candidatas{'\n'}
-            Nitidez candidatas: {item.candidatas.map((c) => c.nitidez.toFixed(0)).join(', ') || 'ninguna'}{'\n'}
-            Nitidez descartadas: {item.descartadas.map((d) => d.nitidez.toFixed(0)).join(', ') || 'ninguna'}
-          </ThemedText>
+          <ThemedView style={styles.itemGrupo}>
+            <ThemedText style={styles.item}>
+              Grupo {index + 1}: {item.fotos.length} fotos · distancias: {item.distancias.join(', ')} · {item.candidatas.length} candidatas{'\n'}
+              Nitidez candidatas: {item.candidatas.map((c) => c.nitidez.toFixed(0)).join(', ') || 'ninguna'}{'\n'}
+              Nitidez descartadas: {item.descartadas.map((d) => d.nitidez.toFixed(0)).join(', ') || 'ninguna'}
+            </ThemedText>
+            {item.candidatas.length > 1 && (
+              <Pressable style={styles.botonGrupo} onPress={() => seleccionarGrupo(item)}>
+                <ThemedText style={styles.textoBotonPrueba}>Elegir mejor foto de este grupo</ThemedText>
+              </Pressable>
+            )}
+          </ThemedView>
         )}
       />
       <ThemedText type="subtitle" style={styles.subtitulo}>
@@ -180,10 +202,13 @@ const styles = StyleSheet.create({
   lista: {
     flex: 1,
   },
-  item: {
+  itemGrupo: {
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ccc',
+  },
+  item: {
+    marginBottom: 8,
   },
     filaNitidez: {
     flexDirection: 'row',
@@ -203,6 +228,14 @@ botonPrueba: {
     borderRadius: 8,
     alignSelf: 'center',
     marginBottom: 16,
+  },
+  botonGrupo: {
+    backgroundColor: '#34C759',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
   },
   textoBotonPrueba: {
     color: 'white',
