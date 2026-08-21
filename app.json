@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "app-fotos.",
+    "name": "Fondly",
     "slug": "app-fotos.",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,17 +33,17 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#F5EFE3",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#3B2A28"
           }
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "app-fotos necesita acceder a tus fotos para agruparlas y ayudarte a elegir las mejores.",
-          "savePhotosPermission": "app-fotos necesita guardar cambios en tus fotos.",
+          "photosPermission": "Fondly necesita acceder a tus fotos para agruparlas y ayudarte a elegir las mejores.",
+          "savePhotosPermission": "Fondly necesita guardar cambios en tus fotos.",
           "isAccessMediaLocationEnabled": false
         }
       ]

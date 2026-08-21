@@ -1,14 +1,27 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
-import { FlatList, StyleSheet, Pressable } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { FlatList, StyleSheet, Pressable, View, Text } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { agruparPorTiempo, GrupoFotos } from '@/lib/agrupar';
 import { calcularHash, distanciaHamming } from '@/lib/hash';
 import { calcularNitidez, esBorrosa } from '@/lib/nitidez';
+import { obtenerGanadora } from '@/lib/gruposElegidos';
 import { Image } from 'expo-image';
+
+// --- Sistema de diseño (paleta cálida, suavizada hacia coral-rosado) -----
+// Centralizado aquí para reutilizar los mismos valores en seleccion.tsx.
+const COLORES = {
+  fondo: '#F5EFE3',
+  superficie: '#FFFFFF',
+  borde: '#EAE2D0',
+  acento: '#D98C7A',
+  acentoSuave: '#F4DCD3',
+  acentoOscuro: '#3B2A28',
+  texto: '#2B2420',
+  textoSecundario: '#8C8171',
+};
+// -------------------------------------------------------------------------
 
 type CandidataConUri = { id: string; uri: string; nitidez: number };
 
@@ -17,41 +30,32 @@ type GrupoConDistancias = GrupoFotos & {
   candidatas: CandidataConUri[];
   descartadas: CandidataConUri[];
 };
-type ResultadoNitidez = {
-  id: string;
-  uri: string;
-  nitidez: number;
-};
-
-async function calibrarNitidez(
-  fotos: { id: string; uri: string }[]
-): Promise<ResultadoNitidez[]> {
-  const muestra = fotos.slice(0, 25);
-  const resultados: ResultadoNitidez[] = [];
-  for (const foto of muestra) {
-    const nitidez = await calcularNitidez(foto.id);
-    resultados.push({ id: foto.id, uri: foto.uri, nitidez });
-  }
-  return resultados;
-}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [status, setStatus] = useState('Pidiendo permiso...');
+  const [status, setStatus] = useState('Preparando todo...');
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
-  const [resultadosNitidez, setResultadosNitidez] = useState<ResultadoNitidez[]>([]);
+  // Se incrementa cada vez que la pantalla vuelve a tener el foco, para forzar
+  // un re-render y reflejar las ganadoras marcadas en gruposElegidos.ts.
+  const [tick, setTick] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setTick((t) => t + 1);
+    }, [])
+  );
 
   useEffect(() => {
     (async () => {
       const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
 
       if (permisoStatus !== 'granted') {
-        setStatus('Permiso denegado. No podemos acceder al carrete.');
+        setStatus('No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes.');
         return;
       }
 
-      setStatus('Permiso concedido. Leyendo carrete...');
+      setStatus('Buscando tus fotos...');
 
       const resultado = await MediaLibrary.getAssetsAsync({
         mediaType: 'photo',
@@ -69,16 +73,10 @@ export default function HomeScreen() {
       }));
       const gruposCalculados = agruparPorTiempo(fotos);
 
-      const fotosConUri = resultado.assets.map((asset) => ({
-        id: asset.id,
-        uri: asset.uri,
-      }));
-      const resultadosCalibracion = await calibrarNitidez(fotosConUri);
-      setResultadosNitidez(resultadosCalibracion);
       const soloRafagas = gruposCalculados.filter((g) => g.fotos.length > 1);
 
       setTotalFotos(resultado.totalCount);
-      setStatus(`Calculando huellas visuales de ${soloRafagas.length} rafagas...`);
+      setStatus(`Organizando ${soloRafagas.length} ráfagas...`);
 
       const gruposConDistancias: GrupoConDistancias[] = [];
 
@@ -118,66 +116,81 @@ export default function HomeScreen() {
       }
 
       setGrupos(gruposConDistancias);
-      setStatus('Listo');
+      setStatus('¡Listo!');
     })();
   }, []);
 
-  const seleccionarGrupo = (grupo: GrupoConDistancias) => {
+  const seleccionarGrupo = (grupo: GrupoConDistancias, grupoId: string) => {
     const candidatasParaTorneo = grupo.candidatas.map((c) => ({ id: c.id, uri: c.uri }));
+    // Pasamos también las descartadas (borrosas) para que, si el usuario decide
+    // "Borrar las demás" al final, se limpie la ráfaga completa y no solo las
+    // que compitieron en el torneo.
+    const descartadasParaTorneo = grupo.descartadas.map((d) => ({ id: d.id, uri: d.uri }));
     router.push({
       pathname: '/seleccion',
-      params: { candidatas: JSON.stringify(candidatasParaTorneo) },
+      params: {
+        candidatas: JSON.stringify(candidatasParaTorneo),
+        descartadas: JSON.stringify(descartadasParaTorneo),
+        grupoId,
+      },
     });
   };
 
   return (
-    <ThemedView style={styles.container}>
-<ThemedText type="title" style={styles.titulo}>app-fotos</ThemedText>
-      <Pressable style={styles.botonPrueba} onPress={() => router.push('/seleccion')}>
-        <ThemedText style={styles.textoBotonPrueba}>Probar selección (torneo)</ThemedText>
-      </Pressable>
-      <ThemedText style={styles.status}>{status}</ThemedText>
+    <View style={styles.container}>
+      <Text style={styles.titulo}>Fondly</Text>
+
+      <Text style={styles.status}>{status}</Text>
       {totalFotos !== null && (
-        <ThemedText type="subtitle" style={styles.subtitulo}>
-          Analizadas las 200 mas recientes de {totalFotos} · {grupos.length} rafagas
-        </ThemedText>
+        <Text style={styles.subtitulo}>
+          Hemos revisado tus {totalFotos} fotos más recientes y encontrado {grupos.length} ráfagas
+        </Text>
       )}
+
       <FlatList
         data={grupos}
         keyExtractor={(_, index) => `grupo-${index}`}
         style={styles.lista}
-        renderItem={({ item, index }) => (
-          <ThemedView style={styles.itemGrupo}>
-            <ThemedText style={styles.item}>
-              Grupo {index + 1}: {item.fotos.length} fotos · distancias: {item.distancias.join(', ')} · {item.candidatas.length} candidatas{'\n'}
-              Nitidez candidatas: {item.candidatas.map((c) => c.nitidez.toFixed(0)).join(', ') || 'ninguna'}{'\n'}
-              Nitidez descartadas: {item.descartadas.map((d) => d.nitidez.toFixed(0)).join(', ') || 'ninguna'}
-            </ThemedText>
-            {item.candidatas.length > 1 && (
-              <Pressable style={styles.botonGrupo} onPress={() => seleccionarGrupo(item)}>
-                <ThemedText style={styles.textoBotonPrueba}>Elegir mejor foto de este grupo</ThemedText>
-              </Pressable>
-            )}
-          </ThemedView>
-        )}
+        extraData={tick}
+        renderItem={({ item, index }) => {
+          const grupoId = String(index);
+          const ganadora = obtenerGanadora(grupoId);
+          const portada = ganadora?.uri ?? item.candidatas[0]?.uri;
+
+          return (
+            <View style={styles.tarjeta}>
+              {portada ? (
+                <View style={styles.portadaContenedor}>
+                  <Image source={{ uri: portada }} style={styles.portada} />
+                  {ganadora && (
+                    <View style={styles.insignia}>
+                      <Text style={styles.insigniaTexto}>✓</Text>
+                    </View>
+                  )}
+                </View>
+              ) : null}
+
+              <View style={styles.tarjetaCuerpo}>
+                <Text style={styles.tarjetaTitulo}>
+                  Ráfaga {index + 1} · {item.fotos.length} fotos
+                </Text>
+
+                {item.candidatas.length > 1 && (
+                  <Pressable
+                    style={ganadora ? styles.botonSecundario : styles.botonGrupo}
+                    onPress={() => seleccionarGrupo(item, grupoId)}
+                  >
+                    <Text style={ganadora ? styles.textoBotonSecundario : styles.textoBotonGrupo}>
+                      {ganadora ? 'Volver a elegir' : 'Elegir la mejor foto ✨'}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          );
+        }}
       />
-      <ThemedText type="subtitle" style={styles.subtitulo}>
-        Calibración de nitidez
-      </ThemedText>
-      <FlatList
-        data={resultadosNitidez}
-        keyExtractor={(item) => item.id}
-        style={styles.lista}
-        renderItem={({ item }) => (
-          <ThemedView style={styles.filaNitidez}>
-            <Image source={{ uri: item.uri }} style={styles.miniatura} />
-            <ThemedText style={styles.item}>
-              {item.nitidez.toFixed(0)}
-            </ThemedText>
-          </ThemedView>
-        )}
-      />
-    </ThemedView>
+    </View>
   );
 }
 
@@ -186,59 +199,96 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 20,
+    backgroundColor: COLORES.fondo,
   },
   titulo: {
     textAlign: 'center',
     marginBottom: 8,
+    color: COLORES.texto,
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   status: {
     textAlign: 'center',
     marginBottom: 4,
+    color: COLORES.textoSecundario,
+    fontSize: 13,
   },
   subtitulo: {
     textAlign: 'center',
+    marginTop: 8,
     marginBottom: 16,
+    color: COLORES.textoSecundario,
+    fontSize: 14,
+    fontWeight: '600',
   },
   lista: {
     flex: 1,
   },
-  itemGrupo: {
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
-  },
-  item: {
-    marginBottom: 8,
-  },
-    filaNitidez: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 12,
-  },
-  miniatura: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-botonPrueba: {
-    backgroundColor: '#3478F6',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignSelf: 'center',
+
+  // --- Tarjeta de ráfaga (estilo VSCO/Instagram: portada + badge + info) ---
+  tarjeta: {
+    backgroundColor: COLORES.superficie,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORES.borde,
     marginBottom: 16,
+    overflow: 'hidden',
   },
-  botonGrupo: {
-    backgroundColor: '#34C759',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
+  portadaContenedor: {
+    position: 'relative',
   },
-  textoBotonPrueba: {
-    color: 'white',
+  portada: {
+    width: '100%',
+    height: 220,
+  },
+  insignia: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: COLORES.acento,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insigniaTexto: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  tarjetaCuerpo: {
+    padding: 14,
+  },
+  tarjetaTitulo: {
+    color: COLORES.texto,
+    fontSize: 15,
     fontWeight: '600',
+    marginBottom: 10,
+  },
+
+  botonGrupo: {
+    backgroundColor: COLORES.acento,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    alignSelf: 'flex-start',
+  },
+  botonSecundario: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    alignSelf: 'flex-start',
+  },
+  textoBotonGrupo: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  textoBotonSecundario: {
+    color: COLORES.acento,
+    fontWeight: '600',
+    fontSize: 13,
   },
 });
