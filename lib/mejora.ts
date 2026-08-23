@@ -3,6 +3,16 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { toByteArray, fromByteArray } from 'base64-js';
 import jpeg from 'jpeg-js';
+import { Buffer } from 'buffer';
+
+// jpeg-js usa internamente el objeto `Buffer` de Node.js al *codificar* una
+// imagen (jpeg.encode). Ese objeto no existe en el motor JS de Expo Go
+// (Hermes), así que lo rellenamos aquí con una versión hecha en JavaScript
+// puro. Decodificar (jpeg.decode, usado en nitidez.ts y hash.ts) no lo
+// necesita — por eso solo aquí, donde codificamos, daba error.
+if (typeof (global as any).Buffer === 'undefined') {
+  (global as any).Buffer = Buffer;
+}
 
 // Redimensionamos antes de procesar: decodificar/codificar JPEG en JS puro
 // a resolución completa (12+ megapíxeles de un iPhone) sería demasiado lento
@@ -40,7 +50,11 @@ export async function mejorarFoto(assetId: string): Promise<ResultadoMejora> {
   const codificado = jpeg.encode({ width: ancho, height: alto, data: dataMejorada }, CALIDAD_JPEG);
   const base64Mejorado = fromByteArray(new Uint8Array(codificado.data));
 
-  const destino = `${FileSystem.cacheDirectory}mejora-${assetId}-${Date.now()}.jpg`;
+  // El id de la foto en iOS puede incluir barras (ej. "46836B6D-.../L0/001"),
+  // que se interpretarían como carpetas reales dentro de la ruta de destino
+  // y harían fallar el guardado. Las sustituimos por guion bajo.
+  const idSeguro = assetId.replace(/[^a-zA-Z0-9]/g, '_');
+  const destino = `${FileSystem.cacheDirectory}mejora-${idSeguro}-${Date.now()}.jpg`;
   await FileSystem.writeAsStringAsync(destino, base64Mejorado, {
     encoding: FileSystem.EncodingType.Base64,
   });

@@ -13,8 +13,9 @@ import {
   EstadoTorneo,
   FotoCandidata,
 } from '@/lib/torneo';
-import { marcarGanadora } from '@/lib/gruposElegidos';
+import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
+import { BouncyPressable } from '@/components/bouncy-pressable';
 
 // --- Sistema de diseño (mismos valores que app/(tabs)/index.tsx) --------
 const COLORES = {
@@ -30,36 +31,10 @@ const COLORES = {
 };
 // -------------------------------------------------------------------------
 
-const MAX_EXTRAS = 2;
-
-// Datos de prueba: se usan solo si se entra a esta pantalla sin pasar
-// candidatas reales por parámetro.
-const CANDIDATAS_PRUEBA: FotoCandidata[] = [
-  { id: '1', uri: 'https://picsum.photos/seed/foto1/400/400' },
-  { id: '2', uri: 'https://picsum.photos/seed/foto2/400/400' },
-  { id: '3', uri: 'https://picsum.photos/seed/foto3/400/400' },
-];
-
-function parsearFotos(param: string | string[] | undefined): FotoCandidata[] {
-  if (!param) return [];
-  const valor = Array.isArray(param) ? param[0] : param;
-  try {
-    const parseadas = JSON.parse(valor) as FotoCandidata[];
-    return Array.isArray(parseadas) ? parseadas : [];
-  } catch {
-    return [];
-  }
-}
-
-function obtenerCandidatasIniciales(candidatasParam: string | string[] | undefined): FotoCandidata[] {
-  const parseadas = parsearFotos(candidatasParam);
-  return parseadas.length > 0 ? parseadas : CANDIDATAS_PRUEBA;
-}
-
 // Suma el tamaño en disco de un conjunto de fotos, para poder decirle al
 // usuario cuánto espacio ha liberado al borrar. Si alguna foto falla al
-// consultarse (por ejemplo, en modo prueba con uris de picsum), simplemente
-// no cuenta para el total en vez de romper todo el cálculo.
+// consultarse, simplemente no cuenta para el total en vez de romper todo
+// el cálculo.
 async function calcularTamanoTotal(fotos: FotoCandidata[]): Promise<number> {
   let total = 0;
   for (const foto of fotos) {
@@ -87,14 +62,17 @@ function formatearTamano(bytes: number): string {
 
 export default function SeleccionScreen() {
   const router = useRouter();
-  const { candidatas: candidatasParam, descartadas: descartadasParam, grupoId } = useLocalSearchParams<{
-    candidatas?: string;
-    descartadas?: string;
-    grupoId?: string;
-  }>();
+  const { grupoId } = useLocalSearchParams<{ grupoId?: string }>();
 
-  const candidatasOriginales = useRef(obtenerCandidatasIniciales(candidatasParam)).current;
-  const descartadasPorNitidez = useRef(parsearFotos(descartadasParam)).current;
+  // El grupo (candidatas + descartadas) solo puede venir del store en
+  // memoria, que lo registra la pantalla de inicio a partir de una consulta
+  // real al carrete en esta sesión. Nunca se aceptan fotos ni ids llegados
+  // por parámetros de navegación: así un deep link no puede colar una
+  // pantalla de borrado con datos que no corresponden a lo que se ve.
+  const grupo = grupoId ? obtenerGrupo(grupoId) : undefined;
+
+  const candidatasOriginales = useRef(grupo?.candidatas ?? []).current;
+  const descartadasPorNitidez = useRef(grupo?.descartadas ?? []).current;
   const totalComparaciones = Math.max(candidatasOriginales.length - 1, 1);
 
   const [estado, setEstado] = useState<EstadoTorneo>(() => iniciarTorneo(candidatasOriginales));
@@ -104,8 +82,11 @@ export default function SeleccionScreen() {
   const [mejorando, setMejorando] = useState(false);
   const [fotoMejorada, setFotoMejorada] = useState<ResultadoMejora | null>(null);
   // ids de las fotos "descartadas" que el usuario decide quedarse además de
-  // la ganadora (hasta MAX_EXTRAS), antes de borrar el resto de la ráfaga.
+  // la ganadora, antes de borrar el resto de la ráfaga.
   const [extrasSeleccionadas, setExtrasSeleccionadas] = useState<string[]>([]);
+  // Tamaño en bytes que se liberaría borrando lo que no se ha marcado para
+  // conservar. null mientras se está calculando (o todavía no hay ganadora).
+  const [tamanoALiberar, setTamanoALiberar] = useState<number | null>(null);
 
   const pareja = parejaActual(estado);
 
@@ -120,6 +101,42 @@ export default function SeleccionScreen() {
     }
   }, [estado.ganadora, grupoId]);
 
+  // Recalcula en vivo cuánto espacio se liberaría con la selección actual:
+  // se dispara nada más elegir ganadora, y cada vez que el usuario marca o
+  // desmarca una foto extra para conservar. Un flag "cancelado" evita que
+  // una respuesta antigua (de un cálculo anterior más lento) sobrescriba el
+  // resultado de un cálculo más reciente si el usuario toca varias veces
+  // seguidas.
+  useEffect(() => {
+    if (!estado.ganadora) {
+      setTamanoALiberar(null);
+      return;
+    }
+
+    const restoActual = [
+      ...candidatasOriginales.filter((c) => c.id !== estado.ganadora!.id),
+      ...descartadasPorNitidez,
+    ];
+    const fotosABorrarAhora = restoActual.filter((f) => !extrasSeleccionadas.includes(f.id));
+
+    if (fotosABorrarAhora.length === 0) {
+      setTamanoALiberar(0);
+      return;
+    }
+
+    let cancelado = false;
+    setTamanoALiberar(null);
+    calcularTamanoTotal(fotosABorrarAhora).then((total) => {
+      if (!cancelado) {
+        setTamanoALiberar(total);
+      }
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [estado.ganadora, extrasSeleccionadas]);
+
   // Todo lo que no es la ganadora: las que perdieron el torneo + las
   // descartadas de entrada por estar borrosas.
   const resto = estado.ganadora
@@ -133,9 +150,6 @@ export default function SeleccionScreen() {
     setExtrasSeleccionadas((actual) => {
       if (actual.includes(id)) {
         return actual.filter((x) => x !== id);
-      }
-      if (actual.length >= MAX_EXTRAS) {
-        return actual;
       }
       return [...actual, id];
     });
@@ -193,7 +207,7 @@ export default function SeleccionScreen() {
     if (idsABorrar.length === 0) return;
     Alert.alert(
       'Borrar fotos',
-      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de esta ráfaga. No podrás recuperarlas después.`,
+      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de esta ráfaga. Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -236,6 +250,26 @@ export default function SeleccionScreen() {
     confirmarYBorrarFotos(idsABorrar);
   };
 
+  // No hay grupo válido en el store: o el grupoId no existe (deep link con
+  // un id inventado), o la app se ha reiniciado y el store en memoria se ha
+  // vaciado. En ningún caso se rellena con datos de prueba: se avisa y se
+  // vuelve a la lista de ráfagas.
+  if (!grupo || candidatasOriginales.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.avisoContenedor}>
+          <Text style={styles.titulo}>No encontramos esta ráfaga</Text>
+          <Text style={styles.pista}>
+            Puede que la app se haya reiniciado. Vuelve a la lista y ábrela de nuevo.
+          </Text>
+          <BouncyPressable style={styles.botonAccion} onPress={() => router.replace('/')}>
+            <Text style={styles.textoBotonAccion}>Volver a mis fotos</Text>
+          </BouncyPressable>
+        </View>
+      </View>
+    );
+  }
+
   if (estado.ganadora) {
     return (
       <View style={styles.container}>
@@ -257,9 +291,9 @@ export default function SeleccionScreen() {
                 <Image source={{ uri: fotoMejorada.uri }} style={styles.previewImagen} />
               </Pressable>
               <View style={styles.previewAcciones}>
-                <Pressable style={styles.botonGuardarMejora} onPress={guardarMejora}>
+                <BouncyPressable style={styles.botonGuardarMejora} onPress={guardarMejora}>
                   <Text style={styles.textoBotonAccion}>Guardar en el carrete</Text>
-                </Pressable>
+                </BouncyPressable>
                 <Pressable style={styles.botonDescartarMejora} onPress={descartarMejora}>
                   <Text style={styles.textoBotonVolver}>Descartar</Text>
                 </Pressable>
@@ -268,11 +302,21 @@ export default function SeleccionScreen() {
           )}
 
           <View style={styles.accionesContenedor}>
-            <Pressable style={styles.botonAccion} onPress={compartir}>
-              <Text style={styles.textoBotonAccion}>Compartir / Publicar</Text>
-            </Pressable>
+            {resto.length > 0 && (
+              <Text style={styles.contadorEspacio}>
+                {tamanoALiberar === null
+                  ? 'Calculando espacio a liberar...'
+                  : tamanoALiberar > 0
+                  ? `🗑 Vas a liberar ${formatearTamano(tamanoALiberar)}`
+                  : 'No vas a liberar espacio (te quedas con todas)'}
+              </Text>
+            )}
 
-            <Pressable
+            <BouncyPressable style={styles.botonAccion} onPress={compartir}>
+              <Text style={styles.textoBotonAccion}>Compartir / Publicar</Text>
+            </BouncyPressable>
+
+            <BouncyPressable
               style={styles.botonAccionSecundaria}
               onPress={retocar}
               disabled={mejorando}
@@ -280,10 +324,10 @@ export default function SeleccionScreen() {
               <Text style={styles.textoBotonAccionSecundaria}>
                 {mejorando ? 'Dándole un toque...' : 'Dar un toque de brillo ✨'}
               </Text>
-            </Pressable>
+            </BouncyPressable>
 
             {resto.length > 0 && (
-              <Pressable
+              <BouncyPressable
                 style={styles.botonPeligro}
                 onPress={borrarResto}
                 disabled={borrando}
@@ -291,7 +335,7 @@ export default function SeleccionScreen() {
                 <Text style={styles.textoBotonPeligro}>
                   {borrando ? 'Borrando...' : `Borrar las demás (${resto.length})`}
                 </Text>
-              </Pressable>
+              </BouncyPressable>
             )}
           </View>
 
@@ -299,7 +343,7 @@ export default function SeleccionScreen() {
             <View style={styles.extrasContenedor}>
               <Text style={styles.previewEtiqueta}>¿Alguna más de esta ráfaga?</Text>
               <Text style={styles.extrasSubtitulo}>
-                Puedes quedarte con hasta {MAX_EXTRAS} más además de la elegida.
+                Elige las que quieras conservar además de la elegida.
               </Text>
 
               <View style={styles.extrasFilaMiniaturas}>
@@ -326,7 +370,7 @@ export default function SeleccionScreen() {
               </View>
 
               {extrasSeleccionadas.length > 0 && (
-                <Pressable
+                <BouncyPressable
                   style={styles.botonGuardarExtras}
                   onPress={guardarExtrasYBorrarResto}
                   disabled={borrando}
@@ -336,7 +380,7 @@ export default function SeleccionScreen() {
                       ? 'Borrando...'
                       : `Guardar ${extrasSeleccionadas.length} más y borrar el resto`}
                   </Text>
-                </Pressable>
+                </BouncyPressable>
               )}
             </View>
           )}
@@ -375,23 +419,26 @@ export default function SeleccionScreen() {
         </Text>
         <Text style={styles.titulo}>¿Cuál prefieres?</Text>
         <Text style={styles.pista}>Toca el corazón de la que más te guste</Text>
+        {comparacionActual === 1 && (
+          <Text style={styles.pistaZoom}>Toca la foto para ampliarla y comparar bien</Text>
+        )}
 
         <View style={styles.opcion}>
           <Pressable onPress={() => setFotoAmpliada(fotoA.uri)}>
             <Image source={{ uri: fotoA.uri }} style={styles.foto} />
           </Pressable>
-          <Pressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
+          <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
             <Text style={styles.textoCorazon}>♥</Text>
-          </Pressable>
+          </BouncyPressable>
         </View>
 
         <View style={styles.opcion}>
           <Pressable onPress={() => setFotoAmpliada(fotoB.uri)}>
             <Image source={{ uri: fotoB.uri }} style={styles.foto} />
           </Pressable>
-          <Pressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
+          <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
             <Text style={styles.textoCorazon}>♥</Text>
-          </Pressable>
+          </BouncyPressable>
         </View>
       </ScrollView>
 
@@ -416,6 +463,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexGrow: 1,
   },
+  avisoContenedor: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
   contador: {
     color: COLORES.textoSecundario,
     fontSize: 13,
@@ -435,6 +488,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: COLORES.textoSecundario,
     fontSize: 13,
+    textAlign: 'center',
+  },
+  pistaZoom: {
+    marginTop: -14,
+    marginBottom: 20,
+    color: COLORES.textoSecundario,
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   opcion: {
     alignItems: 'center',
@@ -528,6 +590,12 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
     marginBottom: 20,
+  },
+  contadorEspacio: {
+    textAlign: 'center',
+    color: COLORES.acentoOscuro,
+    fontSize: 14,
+    fontWeight: '600',
   },
   botonAccion: {
     backgroundColor: COLORES.acentoOscuro,
