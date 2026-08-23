@@ -24,6 +24,7 @@ const ESCALA_MINIMA = 1;
 const ESCALA_MAXIMA = 4;
 const ESCALA_DOBLE_TOQUE = 2.5;
 const TIEMPO_MAX_DOBLE_TOQUE = 280; // ms
+const UMBRAL_CIERRE = 120; // px arrastrados hacia abajo para cerrar el modal
 
 // Visor con zoom implementado a mano con PanResponder + Animated (ambos ya
 // incluidos en React Native, sin librerías extra). Antes se probó con
@@ -41,11 +42,13 @@ export function ZoomablePhotoModal({ uri, visible, onClose }: Props) {
   const escala = useRef(new Animated.Value(1)).current;
   const traslacionX = useRef(new Animated.Value(0)).current;
   const traslacionY = useRef(new Animated.Value(0)).current;
+  const traslacionCierre = useRef(new Animated.Value(0)).current;
 
   // Copias "planas" (números normales, no Animated.Value) para poder hacer
   // cálculos síncronos durante el gesto sin depender de leer Animated.Value.
   const escalaActual = useRef(1);
   const traslacionActual = useRef({ x: 0, y: 0 });
+  const traslacionCierreActual = useRef(0);
   const distanciaInicialPellizco = useRef<number | null>(null);
   const escalaAlIniciarGesto = useRef(1);
   const ultimoNumeroDeToques = useRef(0);
@@ -55,16 +58,19 @@ export function ZoomablePhotoModal({ uri, visible, onClose }: Props) {
   const resetearZoom = (animado: boolean) => {
     escalaActual.current = 1;
     traslacionActual.current = { x: 0, y: 0 };
+    traslacionCierreActual.current = 0;
     if (animado) {
       Animated.parallel([
         Animated.spring(escala, { toValue: 1, useNativeDriver: true }),
         Animated.spring(traslacionX, { toValue: 0, useNativeDriver: true }),
         Animated.spring(traslacionY, { toValue: 0, useNativeDriver: true }),
+        Animated.spring(traslacionCierre, { toValue: 0, useNativeDriver: true }),
       ]).start();
     } else {
       escala.setValue(1);
       traslacionX.setValue(0);
       traslacionY.setValue(0);
+      traslacionCierre.setValue(0);
     }
   };
 
@@ -166,6 +172,21 @@ export function ZoomablePhotoModal({ uri, visible, onClose }: Props) {
           traslacionX.setValue(nuevaX);
           traslacionY.setValue(nuevaY);
           ultimaPosicionToqueUnico.current = { x: toque.pageX, y: toque.pageY };
+        } else if (
+          toques.length === 1 &&
+          escalaActual.current <= ESCALA_MINIMA &&
+          ultimaPosicionToqueUnico.current
+        ) {
+          // Sin zoom aplicado, un dedo arrastrando hacia abajo mueve la foto
+          // para cerrar el modal. Solo cuenta el movimiento hacia abajo (se
+          // recorta a 0 si el dedo sube), para que no se pueda "levantar" la
+          // foto sin sentido cuando no hay nada de zoom que mostrar arriba.
+          const toque = toques[0];
+          const deltaY = toque.pageY - ultimaPosicionToqueUnico.current.y;
+          const nuevaCierre = Math.max(0, traslacionCierreActual.current + deltaY);
+          traslacionCierreActual.current = nuevaCierre;
+          traslacionCierre.setValue(nuevaCierre);
+          ultimaPosicionToqueUnico.current = { x: toque.pageX, y: toque.pageY };
         }
       },
 
@@ -174,6 +195,16 @@ export function ZoomablePhotoModal({ uri, visible, onClose }: Props) {
       onPanResponderRelease: () => {
         distanciaInicialPellizco.current = null;
         ultimaPosicionToqueUnico.current = null;
+
+        if (traslacionCierreActual.current > UMBRAL_CIERRE) {
+          onClose();
+          return;
+        }
+        if (traslacionCierreActual.current > 0) {
+          traslacionCierreActual.current = 0;
+          Animated.spring(traslacionCierre, { toValue: 0, useNativeDriver: true }).start();
+        }
+
         // Si el pellizco deja la foto más pequeña que su tamaño original,
         // volvemos suavemente a la escala normal.
         if (escalaActual.current < ESCALA_MINIMA) {
@@ -200,7 +231,7 @@ export function ZoomablePhotoModal({ uri, visible, onClose }: Props) {
               {
                 transform: [
                   { translateX: traslacionX },
-                  { translateY: traslacionY },
+                  { translateY: Animated.add(traslacionY, traslacionCierre) },
                   { scale: escala },
                 ],
               },

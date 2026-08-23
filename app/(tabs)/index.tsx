@@ -41,7 +41,7 @@ type GrupoConDistancias = GrupoFotos & {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [status, setStatus] = useState('Preparando todo...');
+  const [status, setStatus] = useState('Preparando tu selección...');
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
   // Se incrementa cada vez que la pantalla vuelve a tener el foco, para forzar
@@ -75,7 +75,7 @@ export default function HomeScreen() {
         return;
       }
 
-      setStatus('Buscando tus fotos...');
+      setStatus('Revisando tus fotos...');
 
       const resultado = await MediaLibrary.getAssetsAsync({
         mediaType: 'photo',
@@ -101,7 +101,7 @@ export default function HomeScreen() {
       // instantáneo), pero sin esto React agruparía este cambio de estado
       // con el siguiente y el usuario nunca llegaría a ver esta fase.
       await new Promise((resolve) => setTimeout(resolve, 400));
-      setStatus(`Comparando ${soloRafagas.length} grupos de fotos...`);
+      setStatus(`Revisando ${soloRafagas.length} grupos de fotos...`);
 
       const gruposConDistancias: GrupoConDistancias[] = [];
 

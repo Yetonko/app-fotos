@@ -47,10 +47,17 @@ const PASOS = [
 export default function BienvenidaScreen() {
   const router = useRouter();
   const [paso, setPaso] = useState(0);
+  // Copia "plana" del paso actual, para poder comprobarlo de forma síncrona
+  // dentro de siguiente() sin depender del valor capturado en el cierre de
+  // la función, que puede quedar desactualizado si siguiente() se llega a
+  // llamar dos veces casi a la vez — por ejemplo, si el toque del botón y
+  // el gesto de swipe llegan a solaparse en el mismo movimiento.
+  const pasoActual = useRef(0);
 
   const siguiente = async () => {
-    if (paso < PASOS.length - 1) {
-      setPaso((p) => p + 1);
+    if (pasoActual.current < PASOS.length - 1) {
+      pasoActual.current += 1;
+      setPaso(pasoActual.current);
       return;
     }
     try {

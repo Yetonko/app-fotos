@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Pressable, View, Text, ScrollView, Alert, Share } from 'react-native';
+import { StyleSheet, Pressable, View, Text, ScrollView, Alert, Share, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
@@ -59,6 +59,15 @@ function formatearTamano(bytes: number): string {
   }
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
+
+// La papelera de 30 días de "Eliminados recientemente" es un comportamiento
+// verificado de iOS. En Android varía según el fabricante y la app de
+// galería, así que ahí evitamos prometer un número de días o un nombre de
+// carpeta concretos.
+const TEXTO_RECUPERACION =
+  Platform.OS === 'ios'
+    ? 'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.'
+    : 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.';
 
 export default function SeleccionScreen() {
   const router = useRouter();
@@ -164,7 +173,7 @@ export default function SeleccionScreen() {
       try {
         await Share.share({ url: estado.ganadora.uri });
       } catch {
-        Alert.alert('No se pudo compartir', 'Inténtalo de nuevo en unos segundos.');
+        Alert.alert('No hemos podido abrir las opciones para compartir.', 'Inténtalo de nuevo.');
       }
     }
   };
@@ -177,7 +186,7 @@ export default function SeleccionScreen() {
       setFotoMejorada(resultado);
     } catch (error) {
       console.error('Error al mejorar la foto:', error);
-      Alert.alert('Esto no ha funcionado', 'Prueba de nuevo, o hazlo con una foto real de tu carrete.');
+      Alert.alert('No hemos podido mejorar esta foto.', 'Prueba de nuevo.');
     } finally {
       setMejorando(false);
     }
@@ -190,7 +199,7 @@ export default function SeleccionScreen() {
       Alert.alert('¡Guardada!', 'La nueva versión ya está en tu carrete.');
       setFotoMejorada(null);
     } catch {
-      Alert.alert('No se pudo guardar', 'Inténtalo de nuevo.');
+      Alert.alert('No hemos podido guardar la versión mejorada.', 'Inténtalo de nuevo.');
     }
   };
 
@@ -207,7 +216,7 @@ export default function SeleccionScreen() {
     if (idsABorrar.length === 0) return;
     Alert.alert(
       'Borrar fotos',
-      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de esta ráfaga. Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.`,
+      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de esta ráfaga. ${TEXTO_RECUPERACION}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -229,8 +238,8 @@ export default function SeleccionScreen() {
               );
             } catch {
               Alert.alert(
-                'No se pudo borrar',
-                'Puede que estés en modo prueba o que hayas cancelado el aviso de iOS.'
+                'No hemos podido eliminar las fotos.',
+                'Revisa los permisos e inténtalo de nuevo.'
               );
             } finally {
               setBorrando(false);
@@ -286,7 +295,7 @@ export default function SeleccionScreen() {
 
           {fotoMejorada && (
             <View style={styles.previewContenedor}>
-              <Text style={styles.previewEtiqueta}>Con un toque extra ✨</Text>
+              <Text style={styles.previewEtiqueta}>Versión mejorada</Text>
               <Pressable onPress={() => setFotoAmpliada(fotoMejorada.uri)}>
                 <Image source={{ uri: fotoMejorada.uri }} style={styles.previewImagen} />
               </Pressable>
@@ -322,9 +331,12 @@ export default function SeleccionScreen() {
               disabled={mejorando}
             >
               <Text style={styles.textoBotonAccionSecundaria}>
-                {mejorando ? 'Dándole un toque...' : 'Dar un toque de brillo ✨'}
+                {mejorando ? 'Mejorando la luz y el contraste...' : 'Dar un toque de brillo ✨'}
               </Text>
             </BouncyPressable>
+            {mejorando && (
+              <Text style={styles.notaMejora}>Estamos preparando una versión mejorada.</Text>
+            )}
 
             {resto.length > 0 && (
               <BouncyPressable
@@ -333,7 +345,7 @@ export default function SeleccionScreen() {
                 disabled={borrando}
               >
                 <Text style={styles.textoBotonPeligro}>
-                  {borrando ? 'Borrando...' : `Borrar las demás (${resto.length})`}
+                  {borrando ? 'Eliminando fotos...' : `Borrar las demás (${resto.length})`}
                 </Text>
               </BouncyPressable>
             )}
@@ -377,7 +389,7 @@ export default function SeleccionScreen() {
                 >
                   <Text style={styles.textoBotonAccion}>
                     {borrando
-                      ? 'Borrando...'
+                      ? 'Eliminando fotos...'
                       : `Guardar ${extrasSeleccionadas.length} más y borrar el resto`}
                   </Text>
                 </BouncyPressable>
@@ -415,17 +427,17 @@ export default function SeleccionScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.contador}>
-          Foto {comparacionActual} de {totalComparaciones}
+          Comparación {comparacionActual} de {totalComparaciones}
         </Text>
         <Text style={styles.titulo}>¿Cuál prefieres?</Text>
-        <Text style={styles.pista}>Toca el corazón de la que más te guste</Text>
+        <Text style={styles.pista}>Elige la que mejor representa el momento.</Text>
         {comparacionActual === 1 && (
           <Text style={styles.pistaZoom}>Toca la foto para ampliarla y comparar bien</Text>
         )}
 
         <View style={styles.opcion}>
           <Pressable onPress={() => setFotoAmpliada(fotoA.uri)}>
-            <Image source={{ uri: fotoA.uri }} style={styles.foto} />
+            <Image source={{ uri: fotoA.uri }} style={styles.foto} transition={200} />
           </Pressable>
           <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
             <Text style={styles.textoCorazon}>♥</Text>
@@ -434,7 +446,7 @@ export default function SeleccionScreen() {
 
         <View style={styles.opcion}>
           <Pressable onPress={() => setFotoAmpliada(fotoB.uri)}>
-            <Image source={{ uri: fotoB.uri }} style={styles.foto} />
+            <Image source={{ uri: fotoB.uri }} style={styles.foto} transition={200} />
           </Pressable>
           <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
             <Text style={styles.textoCorazon}>♥</Text>
@@ -620,6 +632,13 @@ const styles = StyleSheet.create({
     color: COLORES.acento,
     fontWeight: '600',
     fontSize: 15,
+  },
+  notaMejora: {
+    textAlign: 'center',
+    color: COLORES.textoSecundario,
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: -4,
   },
   botonPeligro: {
     backgroundColor: 'transparent',

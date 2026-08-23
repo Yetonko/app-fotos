@@ -42,8 +42,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Fondly necesita acceder a tus fotos para agruparlas y ayudarte a elegir las mejores.",
-          "savePhotosPermission": "Fondly necesita guardar cambios en tus fotos.",
+          "photosPermission": "Fondly usa tus fotos para encontrar las que se parecen y ayudarte a elegir tu favorita.",
+          "savePhotosPermission": "Fondly necesita permiso para guardar la versión mejorada en tu carrete.",
           "isAccessMediaLocationEnabled": false
         }
       ]

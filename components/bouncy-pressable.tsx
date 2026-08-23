@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Animated, Pressable, PressableProps, ViewStyle, StyleProp } from 'react-native';
+import { Animated, Pressable, PressableProps, ViewStyle, StyleProp, StyleSheet } from 'react-native';
 
 type Props = PressableProps & {
   style?: StyleProp<ViewStyle>;
@@ -33,8 +33,22 @@ export function BouncyPressable({ style, children, onPressIn, onPressOut, ...res
     onPressOut?.(evento);
   };
 
+  // El Pressable de fuera no tenía ningún estilo propio, así que en
+  // contenedores con alignItems: 'center' se encogía a su contenido y un
+  // width en porcentaje del Animated.View de dentro quedaba sin poder
+  // resolverse (referencia circular: "100% de un padre que aún no tiene
+  // ancho"). Solución: pasarle al Pressable solo las propiedades de tamaño
+  // (no el resto del estilo visual, para no duplicar el padding y que el
+  // botón no salga más alto de la cuenta).
+  const { width, height, alignSelf, flex } = StyleSheet.flatten(style) ?? {};
+
   return (
-    <Pressable onPressIn={manejarPressIn} onPressOut={manejarPressOut} {...resto}>
+    <Pressable
+      style={{ width, height, alignSelf, flex }}
+      onPressIn={manejarPressIn}
+      onPressOut={manejarPressOut}
+      {...resto}
+    >
       <Animated.View style={[style, { transform: [{ scale: escala }] }]}>
         {children}
       </Animated.View>
