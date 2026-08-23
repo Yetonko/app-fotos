@@ -345,7 +345,7 @@ export default function SeleccionScreen() {
                   <Text style={styles.extrasSubtitulo}>
                     Elige las que quieras conservar además de la elegida.
                   </Text>
-                  <Text style={styles.pistaZoom}>Toca 🔍 en cada foto para ampliarla antes de decidir</Text>
+                  <Text style={styles.pistaZoomExtras}>Toca 🔍 en cada foto para ampliarla antes de decidir</Text>
 
                   <View style={styles.extrasFilaMiniaturas}>
                     {resto.map((foto) => {
@@ -512,6 +512,14 @@ const styles = StyleSheet.create({
   },
   pistaZoom: {
     marginTop: -14,
+    marginBottom: 20,
+    color: COLORES.textoSecundario,
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  pistaZoomExtras: {
+    marginTop: 4,
     marginBottom: 20,
     color: COLORES.textoSecundario,
     fontSize: 12,
