@@ -311,16 +311,6 @@ export default function SeleccionScreen() {
           )}
 
           <View style={styles.accionesContenedor}>
-            {resto.length > 0 && (
-              <Text style={styles.contadorEspacio}>
-                {tamanoALiberar === null
-                  ? 'Calculando espacio a liberar...'
-                  : tamanoALiberar > 0
-                  ? `🗑 Vas a liberar ${formatearTamano(tamanoALiberar)}`
-                  : 'No vas a liberar espacio (te quedas con todas)'}
-              </Text>
-            )}
-
             <BouncyPressable style={styles.botonAccion} onPress={compartir}>
               <Text style={styles.textoBotonAccion}>Compartir / Publicar</Text>
             </BouncyPressable>
@@ -337,49 +327,57 @@ export default function SeleccionScreen() {
             {mejorando && (
               <Text style={styles.notaMejora}>Estamos preparando una versión mejorada.</Text>
             )}
-
-            {resto.length > 0 && (
-              <BouncyPressable
-                style={styles.botonPeligro}
-                onPress={borrarResto}
-                disabled={borrando}
-              >
-                <Text style={styles.textoBotonPeligro}>
-                  {borrando ? 'Eliminando fotos...' : `Borrar las demás (${resto.length})`}
-                </Text>
-              </BouncyPressable>
-            )}
           </View>
 
-          {resto.length >= 2 && (
+          {resto.length > 0 && (
             <View style={styles.extrasContenedor}>
-              <Text style={styles.previewEtiqueta}>¿Alguna más de esta ráfaga?</Text>
-              <Text style={styles.extrasSubtitulo}>
-                Elige las que quieras conservar además de la elegida.
+              <Text style={styles.contadorEspacio}>
+                {tamanoALiberar === null
+                  ? 'Calculando espacio a liberar...'
+                  : tamanoALiberar > 0
+                  ? `🗑 Vas a liberar ${formatearTamano(tamanoALiberar)}`
+                  : 'No vas a liberar espacio (te quedas con todas)'}
               </Text>
 
-              <View style={styles.extrasFilaMiniaturas}>
-                {resto.map((foto) => {
-                  const seleccionada = extrasSeleccionadas.includes(foto.id);
-                  return (
-                    <Pressable key={foto.id} onPress={() => alternarExtra(foto.id)}>
-                      <View
-                        style={[
-                          styles.miniaturaExtraContenedor,
-                          seleccionada && styles.miniaturaExtraContenedorActiva,
-                        ]}
-                      >
-                        <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
-                        {seleccionada && (
-                          <View style={styles.miniaturaExtraCheck}>
-                            <Text style={styles.miniaturaExtraCheckTexto}>✓</Text>
+              {resto.length >= 2 && (
+                <>
+                  <Text style={styles.previewEtiqueta}>¿Alguna más de esta ráfaga?</Text>
+                  <Text style={styles.extrasSubtitulo}>
+                    Elige las que quieras conservar además de la elegida.
+                  </Text>
+                  <Text style={styles.pistaZoom}>Toca 🔍 en cada foto para ampliarla antes de decidir</Text>
+
+                  <View style={styles.extrasFilaMiniaturas}>
+                    {resto.map((foto) => {
+                      const seleccionada = extrasSeleccionadas.includes(foto.id);
+                      return (
+                        <Pressable key={foto.id} onPress={() => alternarExtra(foto.id)}>
+                          <View
+                            style={[
+                              styles.miniaturaExtraContenedor,
+                              seleccionada && styles.miniaturaExtraContenedorActiva,
+                            ]}
+                          >
+                            <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
+                            {seleccionada && (
+                              <View style={styles.miniaturaExtraCheck}>
+                                <Text style={styles.miniaturaExtraCheckTexto}>✓</Text>
+                              </View>
+                            )}
+                            <Pressable
+                              style={styles.miniaturaExtraLupa}
+                              onPress={() => setFotoAmpliada(foto.uri)}
+                              hitSlop={8}
+                            >
+                              <Text style={styles.miniaturaExtraLupaTexto}>🔍</Text>
+                            </Pressable>
                           </View>
-                        )}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
 
               {extrasSeleccionadas.length > 0 && (
                 <BouncyPressable
@@ -394,6 +392,16 @@ export default function SeleccionScreen() {
                   </Text>
                 </BouncyPressable>
               )}
+
+              <BouncyPressable
+                style={styles.botonPeligro}
+                onPress={borrarResto}
+                disabled={borrando}
+              >
+                <Text style={styles.textoBotonPeligro}>
+                  {borrando ? 'Eliminando fotos...' : `Borrar las demás (${resto.length})`}
+                </Text>
+              </BouncyPressable>
             </View>
           )}
 
@@ -606,8 +614,9 @@ const styles = StyleSheet.create({
   contadorEspacio: {
     textAlign: 'center',
     color: COLORES.acentoOscuro,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   botonAccion: {
     backgroundColor: COLORES.acentoOscuro,
@@ -690,6 +699,20 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 8,
+  },
+  miniaturaExtraLupa: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniaturaExtraLupaTexto: {
+    fontSize: 11,
   },
   miniaturaExtraCheck: {
     position: 'absolute',
