@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FlatList, StyleSheet, Pressable, View, Text, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -41,9 +42,14 @@ type GrupoConDistancias = GrupoFotos & {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState('Preparando tu selección...');
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
+  // Uri de la primera foto del grupo que se está analizando ahora mismo,
+  // para mostrarla en la pantalla de carga y que el usuario vea que algo
+  // está pasando de verdad, no solo un texto fijo.
+  const [previewEscaneo, setPreviewEscaneo] = useState<string | null>(null);
   // Se incrementa cada vez que la pantalla vuelve a tener el foco, para forzar
   // un re-render y reflejar las ganadoras marcadas en gruposElegidos.ts.
   const [tick, setTick] = useState(0);
@@ -101,11 +107,15 @@ export default function HomeScreen() {
       // instantáneo), pero sin esto React agruparía este cambio de estado
       // con el siguiente y el usuario nunca llegaría a ver esta fase.
       await new Promise((resolve) => setTimeout(resolve, 400));
-      setStatus(`Revisando ${soloRafagas.length} grupos de fotos...`);
 
       const gruposConDistancias: GrupoConDistancias[] = [];
 
-      for (const grupo of soloRafagas) {
+      for (let indiceGrupo = 0; indiceGrupo < soloRafagas.length; indiceGrupo++) {
+        const grupo = soloRafagas[indiceGrupo];
+
+        setStatus(`Revisando grupo ${indiceGrupo + 1} de ${soloRafagas.length}...`);
+        setPreviewEscaneo(uriPorId.get(grupo.fotos[0].id) ?? null);
+
         // Se calculan los hashes de todas las fotos del grupo a la vez
         // (en vez de una por una) para aprovechar que el móvil puede
         // decodificar varias imágenes en paralelo.
@@ -154,8 +164,8 @@ export default function HomeScreen() {
 
         registrarGrupo(
           grupoId,
-          candidatas.map((c) => ({ id: c.id, uri: c.uri })),
-          descartadasDetalle.map((d) => ({ id: d.id, uri: d.uri }))
+          candidatas.map((c) => ({ id: c.id, uri: c.uri, nitidez: c.nitidez })),
+          descartadasDetalle.map((d) => ({ id: d.id, uri: d.uri, nitidez: d.nitidez }))
         );
 
         gruposConDistancias.push({
@@ -168,6 +178,7 @@ export default function HomeScreen() {
       }
 
       setGrupos(gruposConDistancias);
+      setPreviewEscaneo(null);
       setStatus('¡Listo!');
     })();
   }, []);
@@ -180,7 +191,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <Text style={styles.titulo}>Fondly</Text>
       <Text style={styles.insigniaPrivacidad}>🔒 100% en tu {DISPOSITIVO}</Text>
 
@@ -196,14 +207,22 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
-      {status !== '¡Listo!' && <Text style={styles.status}>{status}</Text>}
+      {status !== '¡Listo!' && (
+        <View style={styles.escaneoContenedor}>
+          <Text style={styles.status}>{status}</Text>
+          {previewEscaneo && (
+            <Image source={{ uri: previewEscaneo }} style={styles.escaneoPreview} />
+          )}
+        </View>
+      )}
       {status === '¡Listo!' && totalFotos !== null && (
         <Text style={styles.subtitulo}>
           Hemos revisado tus {totalFotos} fotos más recientes y encontrado {grupos.length} grupos de fotos casi iguales
         </Text>
       )}
 
-      <FlatList
+      {status === '¡Listo!' && (
+        <FlatList
         data={grupos}
         keyExtractor={(item) => item.grupoId}
         style={styles.lista}
@@ -230,13 +249,17 @@ export default function HomeScreen() {
                   Grupo {index + 1} · {item.fotos.length} fotos casi iguales
                 </Text>
 
-                {item.candidatas.length > 1 && (
+                {item.candidatas.length > 0 && (
                   <BouncyPressable
                     style={ganadora ? styles.botonSecundario : styles.botonGrupo}
                     onPress={() => seleccionarGrupo(item.grupoId)}
                   >
                     <Text style={ganadora ? styles.textoBotonSecundario : styles.textoBotonGrupo}>
-                      {ganadora ? 'Volver a elegir' : 'Elegir la mejor foto ✨'}
+                      {ganadora
+                        ? 'Volver a elegir'
+                        : item.candidatas.length === 1
+                        ? 'Revisar y limpiar ✨'
+                        : 'Elegir la mejor foto ✨'}
                     </Text>
                   </BouncyPressable>
                 )}
@@ -244,7 +267,8 @@ export default function HomeScreen() {
             </View>
           );
         }}
-      />
+        />
+      )}
     </View>
   );
 }
@@ -252,7 +276,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
     paddingHorizontal: 20,
     backgroundColor: COLORES.fondo,
   },
@@ -265,12 +288,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   insigniaPrivacidad: {
-    textAlign: 'center',
-    marginBottom: 10,
-    color: COLORES.textoSecundario,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    alignSelf: 'center',
+    marginBottom: 14,
+    color: COLORES.acentoOscuro,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    backgroundColor: COLORES.acentoSuave,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
   botonDevReset: {
     alignSelf: 'center',
@@ -284,11 +312,22 @@ const styles = StyleSheet.create({
   status: {
     textAlign: 'center',
     marginBottom: 16,
-    marginTop: 20,
     color: COLORES.texto,
-    fontSize: 19,
+    fontSize: 22,
     fontWeight: '700',
     paddingHorizontal: 10,
+  },
+  escaneoContenedor: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  escaneoPreview: {
+    width: 220,
+    height: 220,
+    borderRadius: 20,
+    backgroundColor: COLORES.superficie,
   },
   subtitulo: {
     textAlign: 'center',

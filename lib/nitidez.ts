@@ -3,10 +3,17 @@ import * as MediaLibrary from 'expo-media-library';
 import { toByteArray } from 'base64-js';
 import jpeg from 'jpeg-js';
 
-const TAMANO_NITIDEZ = 64;
+// Tamaño al que se reduce la foto antes de medir su nitidez. A 64px el
+// propio redimensionado ya difuminaba tanto la imagen que enmascaraba el
+// desenfoque real (composiciones con mucho contraste puntuaban más alto que
+// fotos nítidas con fondo liso). A 300px queda margen para que el filtro
+// Laplaciano detecte desenfoque de verdad, sin ser tan grande como para
+// notarse en el tiempo de análisis.
+const TAMANO_NITIDEZ = 300;
 
-// Umbral orientativo de partida — hay que calibrarlo con fotos reales del carrete.
-// Por debajo de este valor, la foto se considera borrosa.
+// Umbral orientativo de partida — hay que recalibrarlo con fotos reales del
+// carrete ahora que cambia la resolución de análisis (los valores ya no son
+// comparables con los de la versión a 64px).
 export const UMBRAL_BORROSA = 1200;
 
 export async function calcularNitidez(assetId: string): Promise<number> {

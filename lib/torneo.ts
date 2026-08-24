@@ -4,6 +4,9 @@
 export type FotoCandidata = {
   id: string;
   uri: string;
+  // Opcional: solo se rellena para poder mostrar el valor en pantallas de
+  // depuración (__DEV__) mientras calibramos el umbral de nitidez.
+  nitidez?: number;
 };
 
 export type EstadoTorneo = {

@@ -155,6 +155,10 @@ export default function SeleccionScreen() {
       ]
     : [];
 
+  // Ids de las fotos que se descartaron de entrada por estar borrosas, para
+  // poder distinguirlas visualmente de las que perdieron el torneo.
+  const idsBorrosas = new Set(descartadasPorNitidez.map((f) => f.id));
+
   const alternarExtra = (id: string) => {
     setExtrasSeleccionadas((actual) => {
       if (actual.includes(id)) {
@@ -350,6 +354,7 @@ export default function SeleccionScreen() {
                   <View style={styles.extrasFilaMiniaturas}>
                     {resto.map((foto) => {
                       const seleccionada = extrasSeleccionadas.includes(foto.id);
+                      const esBorrosa = idsBorrosas.has(foto.id);
                       return (
                         <Pressable key={foto.id} onPress={() => alternarExtra(foto.id)}>
                           <View
@@ -359,6 +364,18 @@ export default function SeleccionScreen() {
                             ]}
                           >
                             <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
+                            {esBorrosa && (
+                              <View style={styles.miniaturaExtraBorrosa}>
+                                <Text style={styles.miniaturaExtraBorrosaTexto}>Borrosa</Text>
+                              </View>
+                            )}
+                            {__DEV__ && foto.nitidez !== undefined && (
+                              <View style={styles.miniaturaExtraDebug}>
+                                <Text style={styles.miniaturaExtraDebugTexto}>
+                                  {Math.round(foto.nitidez)}
+                                </Text>
+                              </View>
+                            )}
                             {seleccionada && (
                               <View style={styles.miniaturaExtraCheck}>
                                 <Text style={styles.miniaturaExtraCheckTexto}>✓</Text>
@@ -721,6 +738,34 @@ const styles = StyleSheet.create({
   },
   miniaturaExtraLupaTexto: {
     fontSize: 11,
+  },
+  miniaturaExtraBorrosa: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(59,42,40,0.85)',
+  },
+  miniaturaExtraBorrosaTexto: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  miniaturaExtraDebug: {
+    position: 'absolute',
+    bottom: -6,
+    left: -6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  miniaturaExtraDebugTexto: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '700',
   },
   miniaturaExtraCheck: {
     position: 'absolute',
