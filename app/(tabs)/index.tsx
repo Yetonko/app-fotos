@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { agruparPorTiempo, GrupoFotos } from '@/lib/agrupar';
-import { calcularHash, distanciaHamming } from '@/lib/hash';
+import { GrupoFotos } from '@/lib/agrupar';
+import { detectarRafagas } from '@/lib/escaneo';
 import { calcularNitidez, esBorrosa } from '@/lib/nitidez';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
@@ -89,93 +89,62 @@ export default function HomeScreen() {
         sortBy: [[MediaLibrary.SortBy.creationTime, false]],
       });
 
-      // Mapa id -> uri para poder recuperar el uri de cada foto más adelante,
-      // ya que agruparPorTiempo solo trabaja con id y creationTime.
-      const uriPorId = new Map(resultado.assets.map((asset) => [asset.id, asset.uri]));
-
-      const fotos = resultado.assets.map((asset) => ({
-        id: asset.id,
-        creationTime: asset.creationTime,
-      }));
-      const gruposCalculados = agruparPorTiempo(fotos);
-
-      const soloRafagas = gruposCalculados.filter((g) => g.fotos.length > 1);
-
       setTotalFotos(resultado.totalCount);
       setStatus('Agrupando fotos parecidas...');
-      // Pausa corta a propósito: agruparPorTiempo ya ha terminado (es
-      // instantáneo), pero sin esto React agruparía este cambio de estado
+      // Pausa corta a propósito: agrupar por tiempo ya ha terminado dentro
+      // de detectarRafagas (es prácticamente instantáneo), pero sin esto React agruparía este cambio de estado
       // con el siguiente y el usuario nunca llegaría a ver esta fase.
       await new Promise((resolve) => setTimeout(resolve, 400));
 
       const gruposConDistancias: GrupoConDistancias[] = [];
 
-      for (let indiceGrupo = 0; indiceGrupo < soloRafagas.length; indiceGrupo++) {
-        const grupo = soloRafagas[indiceGrupo];
+      await detectarRafagas(resultado.assets, {
+        onProgreso: (indice, total, primeraFotoUri) => {
+          setStatus(`Revisando grupo ${indice + 1} de ${total}...`);
+          setPreviewEscaneo(primeraFotoUri || null);
+        },
+        onGrupo: async (grupo) => {
+          // Igual con la nitidez: se lanzan todas las fotos del grupo a la vez.
+          const resultadosNitidez = await Promise.all(
+            grupo.fotosConUri.map(async (foto) => {
+              const nitidez = await calcularNitidez(foto.id);
+              return { id: foto.id, uri: foto.uri, nitidez };
+            })
+          );
 
-        setStatus(`Revisando grupo ${indiceGrupo + 1} de ${soloRafagas.length}...`);
-        setPreviewEscaneo(uriPorId.get(grupo.fotos[0].id) ?? null);
-
-        // Se calculan los hashes de todas las fotos del grupo a la vez
-        // (en vez de una por una) para aprovechar que el móvil puede
-        // decodificar varias imágenes en paralelo.
-        const hashes = await Promise.all(
-          grupo.fotos.map((foto) => calcularHash(foto.id))
-        );
-
-        const distancias: number[] = [];
-        for (let i = 1; i < hashes.length; i++) {
-          distancias.push(distanciaHamming(hashes[i - 1], hashes[i]));
-        }
-
-        // Igual con la nitidez: se lanzan todas las fotos del grupo a la vez.
-        const resultadosNitidez = await Promise.all(
-          grupo.fotos.map(async (foto) => {
-            const nitidez = await calcularNitidez(foto.id);
-            const uri = uriPorId.get(foto.id) ?? '';
-            return { id: foto.id, uri, nitidez };
-          })
-        );
-
-        const candidatas: CandidataConUri[] = [];
-        const descartadasDetalle: CandidataConUri[] = [];
-        for (const fotoConNitidez of resultadosNitidez) {
-          if (esBorrosa(fotoConNitidez.nitidez)) {
-            descartadasDetalle.push(fotoConNitidez);
-          } else {
-            candidatas.push(fotoConNitidez);
+          const candidatas: CandidataConUri[] = [];
+          const descartadasDetalle: CandidataConUri[] = [];
+          for (const fotoConNitidez of resultadosNitidez) {
+            if (esBorrosa(fotoConNitidez.nitidez)) {
+              descartadasDetalle.push(fotoConNitidez);
+            } else {
+              candidatas.push(fotoConNitidez);
+            }
           }
-        }
 
-        // Salvaguarda: si el filtro descartó todas, rescatamos la de mayor nitidez
-        // para que el usuario siempre tenga al menos una opción entre la que elegir.
-        if (candidatas.length === 0 && descartadasDetalle.length > 0) {
-          descartadasDetalle.sort((a, b) => b.nitidez - a.nitidez);
-          const rescatada = descartadasDetalle.shift()!;
-          candidatas.push(rescatada);
-        }
+          // Salvaguarda: si el filtro descartó todas, rescatamos la de mayor
+          // nitidez para que el usuario siempre tenga al menos una opción
+          // entre la que elegir.
+          if (candidatas.length === 0 && descartadasDetalle.length > 0) {
+            descartadasDetalle.sort((a, b) => b.nitidez - a.nitidez);
+            const rescatada = descartadasDetalle.shift()!;
+            candidatas.push(rescatada);
+          }
 
-        // El id de la primera foto de la ráfaga (ordenadas por fecha) es un
-        // identificador estable del grupo: a diferencia del índice en el
-        // array, no cambia si la lista se recalcula en otra apertura de la
-        // pantalla. Solo debería colisionar si dos ráfagas empiezan por la
-        // misma foto exacta, lo cual no ocurre.
-        const grupoId = grupo.fotos[0].id;
+          registrarGrupo(
+            grupo.grupoId,
+            candidatas.map((c) => ({ id: c.id, uri: c.uri, nitidez: c.nitidez })),
+            descartadasDetalle.map((d) => ({ id: d.id, uri: d.uri, nitidez: d.nitidez }))
+          );
 
-        registrarGrupo(
-          grupoId,
-          candidatas.map((c) => ({ id: c.id, uri: c.uri, nitidez: c.nitidez })),
-          descartadasDetalle.map((d) => ({ id: d.id, uri: d.uri, nitidez: d.nitidez }))
-        );
-
-        gruposConDistancias.push({
-          ...grupo,
-          distancias,
-          candidatas,
-          descartadas: descartadasDetalle,
-          grupoId,
-        });
-      }
+          const { fotosConUri, ...grupoBase } = grupo;
+          gruposConDistancias.push({
+            ...grupoBase,
+            candidatas,
+            descartadas: descartadasDetalle,
+          });
+        },
+      });
 
       setGrupos(gruposConDistancias);
       setPreviewEscaneo(null);
@@ -209,6 +178,11 @@ export default function HomeScreen() {
 
       {status !== '¡Listo!' && (
         <View style={styles.escaneoContenedor}>
+          <Image
+            source={require('@/assets/images/escaneo-ilustracion.png')}
+            style={styles.escaneoIlustracion}
+            contentFit="contain"
+          />
           <Text style={styles.status}>{status}</Text>
           {previewEscaneo && (
             <Image source={{ uri: previewEscaneo }} style={styles.escaneoPreview} />
@@ -267,6 +241,17 @@ export default function HomeScreen() {
             </View>
           );
         }}
+        ListFooterComponent={
+          <BouncyPressable
+            style={styles.tarjetaExplorar}
+            onPress={() => router.push('/explore')}
+          >
+            <Text style={styles.textoExplorar}>📅 Revisar fotos más antiguas</Text>
+            <Text style={styles.subtextoExplorar}>
+              Limpia también las ráfagas de otros periodos
+            </Text>
+          </BouncyPressable>
+        }
         />
       )}
     </View>
@@ -320,14 +305,21 @@ const styles = StyleSheet.create({
   escaneoContenedor: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    marginTop: 12,
     marginBottom: 16,
+  },
+  escaneoIlustracion: {
+    width: 230,
+    height: 230,
+    marginBottom: 4,
   },
   escaneoPreview: {
     width: 220,
     height: 220,
     borderRadius: 20,
     backgroundColor: COLORES.superficie,
+    marginTop: 12,
   },
   subtitulo: {
     textAlign: 'center',
@@ -404,5 +396,28 @@ const styles = StyleSheet.create({
     color: COLORES.acento,
     fontWeight: '600',
     fontSize: 13,
+  },
+  tarjetaExplorar: {
+    backgroundColor: COLORES.acentoSuave,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORES.acento,
+    borderStyle: 'dashed',
+    padding: 20,
+    marginTop: 4,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  textoExplorar: {
+    color: COLORES.acentoOscuro,
+    fontWeight: '700',
+    fontSize: 15,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  subtextoExplorar: {
+    color: COLORES.textoSecundario,
+    fontSize: 13,
+    textAlign: 'center',
   },
 });
