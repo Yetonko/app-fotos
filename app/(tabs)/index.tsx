@@ -51,7 +51,7 @@ type GrupoConDistancias = GrupoFotos & {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [status, setStatus] = useState('Preparando tu selección...');
+  const [status, setStatus] = useState('Buscando tus mejores momentos...');
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
   // Uri de la primera foto del grupo que se está analizando ahora mismo,
@@ -95,7 +95,7 @@ export default function HomeScreen() {
         return;
       }
 
-      setStatus('Revisando tus fotos...');
+      setStatus('Buscando momentos en tu carrete...');
 
       const resultado = await MediaLibrary.getAssetsAsync({
         mediaType: 'photo',
@@ -104,7 +104,7 @@ export default function HomeScreen() {
       });
 
       setTotalFotos(resultado.totalCount);
-      setStatus('Agrupando fotos parecidas...');
+      setStatus('Reconociendo tus momentos...');
       // Pausa corta a propósito: agrupar por tiempo ya ha terminado dentro
       // de detectarRafagas (es prácticamente instantáneo), pero sin esto React agruparía este cambio de estado
       // con el siguiente y el usuario nunca llegaría a ver esta fase.
@@ -114,7 +114,7 @@ export default function HomeScreen() {
 
       await detectarRafagas(resultado.assets, {
         onProgreso: (indice, total, primeraFotoUri) => {
-          setStatus(`Revisando grupo ${indice + 1} de ${total}...`);
+          setStatus(`Revisando momento ${indice + 1} de ${total}...`);
           setPreviewEscaneo(primeraFotoUri || null);
         },
         onGrupo: async (grupo) => {
@@ -196,7 +196,7 @@ export default function HomeScreen() {
       )}
       {status === '¡Listo!' && totalFotos !== null && (
         <Text style={styles.subtitulo}>
-          Hemos revisado tus {totalFotos} fotos más recientes y encontrado {grupos.length} grupos de fotos casi iguales
+          Hemos encontrado {grupos.length} momentos entre tus {totalFotos} fotos más recientes. Elige tu favorita de cada uno.
         </Text>
       )}
 
@@ -214,19 +214,23 @@ export default function HomeScreen() {
           return (
             <View style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}>
               {portada ? (
-                <View style={styles.portadaContenedor}>
-                  <Image source={{ uri: portada }} style={styles.portada} />
-                  {ganadora && (
-                    <View style={styles.insignia}>
-                      <Text style={styles.insigniaTexto}>✓</Text>
-                    </View>
-                  )}
-                </View>
+                <Pressable
+                  onPress={() => item.candidatas.length > 0 && seleccionarGrupo(item.grupoId)}
+                >
+                  <View style={styles.portadaContenedor}>
+                    <Image source={{ uri: portada }} style={styles.portada} />
+                    {ganadora && (
+                      <View style={styles.insignia}>
+                        <Text style={styles.insigniaTexto}>✓</Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
               ) : null}
 
               <View style={styles.tarjetaCuerpo}>
                 <Text style={styles.tarjetaTitulo}>
-                  Grupo {index + 1} · {item.fotos.length} fotos casi iguales
+                  Momento {index + 1} · {item.fotos.length} fotos casi iguales
                   {revisado ? '  ·  Revisado ✓' : ''}
                 </Text>
 

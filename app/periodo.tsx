@@ -86,7 +86,7 @@ export default function PeriodoScreen() {
 
       await detectarRafagas(assets.assets, {
         onProgreso: (indice, total, primeraFotoUri) => {
-          setStatus(`Revisando grupo ${indice + 1} de ${total}...`);
+          setStatus(`Revisando momento ${indice + 1} de ${total}...`);
           setPreviewEscaneo(primeraFotoUri || null);
         },
         onGrupo: (grupo) => {
@@ -168,11 +168,17 @@ export default function PeriodoScreen() {
             return (
               <View style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}>
                 {portada && (
-                  <Image source={{ uri: portada }} style={styles.portada} />
+                  <Pressable
+                    onPress={() =>
+                      router.push({ pathname: '/seleccion', params: { grupoId: item.grupoId } })
+                    }
+                  >
+                    <Image source={{ uri: portada }} style={styles.portada} />
+                  </Pressable>
                 )}
                 <View style={styles.tarjetaCuerpo}>
                   <Text style={styles.tarjetaTitulo}>
-                    Grupo {index + 1} · {item.fotos.length} fotos casi iguales
+                    Momento {index + 1} · {item.fotos.length} fotos casi iguales
                     {revisado ? '  ·  Revisado ✓' : ''}
                   </Text>
                   <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>

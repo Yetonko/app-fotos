@@ -15,7 +15,7 @@ import {
 } from '@/lib/torneo';
 import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { marcarRevisadoSiProcede } from '@/lib/revisados';
-import { obtenerNombreActividad, guardarNombreActividad, formatearFecha } from '@/lib/etiquetas';
+import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formatearEtiqueta } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
 import { BouncyPressable } from '@/components/bouncy-pressable';
@@ -102,6 +102,10 @@ export default function SeleccionScreen() {
   // Se abre automaticamente la primera vez que se termina el torneo de un
   // grupo sin nombre de actividad puesto todavia.
   const [mostrarEtiquetaModal, setMostrarEtiquetaModal] = useState(false);
+  // Se incrementa tras guardar el nombre de actividad, para refrescar el
+  // texto del pill (se calcula desde una cache en memoria, no desde estado
+  // de React, asi que necesita un disparador propio para re-renderizar).
+  const [tickEtiqueta, setTickEtiqueta] = useState(0);
 
   const pareja = parejaActual(estado);
 
@@ -110,14 +114,46 @@ export default function SeleccionScreen() {
     setComparacionActual((n) => Math.min(n + 1, totalComparaciones));
   };
 
+  // Deteccion de doble toque sin depender de react-native-gesture-handler:
+  // si el segundo toque llega dentro de 300ms del primero, cuenta como
+  // "elegir"; si no llega, el primer toque se resuelve como "ampliar" tras
+  // ese mismo margen de tiempo.
+  const ultimoToqueRef = useRef<Record<string, number>>({});
+  const toqueTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
+  const [corazonAnimado, setCorazonAnimado] = useState<string | null>(null);
+
+  const manejarToqueFoto = (foto: FotoCandidata) => {
+    const ahora = Date.now();
+    const anterior = ultimoToqueRef.current[foto.id] ?? 0;
+
+    if (ahora - anterior < 300) {
+      const pendiente = toqueTimeoutRef.current[foto.id];
+      if (pendiente) {
+        clearTimeout(pendiente);
+        toqueTimeoutRef.current[foto.id] = null;
+      }
+      ultimoToqueRef.current[foto.id] = 0;
+      setCorazonAnimado(foto.id);
+      setTimeout(() => setCorazonAnimado(null), 500);
+      elegir(foto);
+    } else {
+      ultimoToqueRef.current[foto.id] = ahora;
+      toqueTimeoutRef.current[foto.id] = setTimeout(() => {
+        setFotoAmpliada(foto.uri);
+        toqueTimeoutRef.current[foto.id] = null;
+      }, 300);
+    }
+  };
+
   useEffect(() => {
     if (estado.ganadora && grupoId) {
       marcarGanadora(grupoId, estado.ganadora);
       const numExtras = candidatasOriginales.length - 1 + descartadasPorNitidez.length;
       marcarRevisadoSiProcede(grupoId, numExtras);
-      if (!obtenerNombreActividad(grupoId)) {
-        setMostrarEtiquetaModal(true);
-      }
+      Alert.alert('¡Ya tienes tu foto! ¿La publicamos?', undefined, [
+        { text: 'Ahora no', style: 'cancel' },
+        { text: 'Publicar', onPress: compartir },
+      ]);
     }
   }, [estado.ganadora, grupoId]);
 
@@ -300,6 +336,11 @@ export default function SeleccionScreen() {
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContenido}>
           <Text style={styles.titulo}>¡Esta es la elegida! ✨</Text>
+          <Pressable onPress={() => setMostrarEtiquetaModal(true)} hitSlop={6}>
+            <Text style={styles.etiquetaPill}>
+              {grupo.creationTime ? formatearEtiqueta(grupoId!, grupo.creationTime) : ''} ✏️
+            </Text>
+          </Pressable>
           <Pressable onPress={() => setFotoAmpliada(estado.ganadora!.uri)}>
             <View style={styles.fotoGanadoraContenedor}>
               <Image source={{ uri: estado.ganadora.uri }} style={styles.fotoGanadora} />
@@ -445,11 +486,12 @@ export default function SeleccionScreen() {
         />
         <EtiquetaModal
           visible={mostrarEtiquetaModal}
-          valorInicial=""
+          valorInicial={grupoId ? obtenerNombreActividad(grupoId) ?? '' : ''}
           etiquetaFecha={grupo.creationTime ? formatearFecha(grupo.creationTime) : ''}
           onGuardar={async (nombre) => {
             if (grupoId) {
               await guardarNombreActividad(grupoId, nombre);
+              setTickEtiqueta((t) => t + 1);
             }
           }}
           onCerrar={() => setMostrarEtiquetaModal(false)}
@@ -474,31 +516,53 @@ export default function SeleccionScreen() {
         contentContainerStyle={styles.scrollContenido}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.contador}>
-          Comparación {comparacionActual} de {totalComparaciones}
-        </Text>
+        <View style={styles.progresoContenedor}>
+          {Array.from({ length: totalComparaciones }).map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.progresoPunto,
+                i === comparacionActual - 1 && styles.progresoPuntoActivo,
+              ]}
+            />
+          ))}
+        </View>
         <Text style={styles.titulo}>¿Cuál prefieres?</Text>
         <Text style={styles.pista}>Elige la que mejor representa el momento.</Text>
-        {comparacionActual === 1 && (
-          <Text style={styles.pistaZoom}>Toca la foto para ampliarla y comparar bien</Text>
-        )}
+        <Text style={styles.pistaZoom}>Toca dos veces para elegir · toca una vez para ampliar</Text>
 
-        <View style={styles.opcion}>
-          <Pressable onPress={() => setFotoAmpliada(fotoA.uri)}>
-            <Image source={{ uri: fotoA.uri }} style={styles.foto} transition={200} />
-          </Pressable>
-          <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
-            <Text style={styles.textoCorazon}>♥</Text>
-          </BouncyPressable>
-        </View>
+        <View style={styles.duelo}>
+          <View style={styles.opcion}>
+            <Pressable onPress={() => manejarToqueFoto(fotoA)}>
+              <View style={styles.fotoDueloContenedor}>
+                <Image source={{ uri: fotoA.uri }} style={styles.fotoDuelo} transition={200} />
+                {corazonAnimado === fotoA.id && (
+                  <View style={styles.corazonFlotanteContenedor} pointerEvents="none">
+                    <Text style={styles.corazonFlotante}>❤️</Text>
+                  </View>
+                )}
+              </View>
+            </Pressable>
+            <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
+              <Text style={styles.textoCorazon}>♥</Text>
+            </BouncyPressable>
+          </View>
 
-        <View style={styles.opcion}>
-          <Pressable onPress={() => setFotoAmpliada(fotoB.uri)}>
-            <Image source={{ uri: fotoB.uri }} style={styles.foto} transition={200} />
-          </Pressable>
-          <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
-            <Text style={styles.textoCorazon}>♥</Text>
-          </BouncyPressable>
+          <View style={styles.opcion}>
+            <Pressable onPress={() => manejarToqueFoto(fotoB)}>
+              <View style={styles.fotoDueloContenedor}>
+                <Image source={{ uri: fotoB.uri }} style={styles.fotoDuelo} transition={200} />
+                {corazonAnimado === fotoB.id && (
+                  <View style={styles.corazonFlotanteContenedor} pointerEvents="none">
+                    <Text style={styles.corazonFlotante}>❤️</Text>
+                  </View>
+                )}
+              </View>
+            </Pressable>
+            <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
+              <Text style={styles.textoCorazon}>♥</Text>
+            </BouncyPressable>
+          </View>
         </View>
       </ScrollView>
 
@@ -544,6 +608,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
   },
+  etiquetaPill: {
+    alignSelf: 'center',
+    color: COLORES.acentoOscuro,
+    fontSize: 14,
+    fontWeight: '700',
+    backgroundColor: COLORES.acentoSuave,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
   pista: {
     marginBottom: 20,
     color: COLORES.textoSecundario,
@@ -570,11 +646,47 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  foto: {
-    width: 250,
-    height: 250,
-    borderRadius: 16,
+  progresoContenedor: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
     marginBottom: 14,
+  },
+  progresoPunto: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORES.borde,
+  },
+  progresoPuntoActivo: {
+    backgroundColor: COLORES.acento,
+    width: 20,
+  },
+  duelo: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  fotoDueloContenedor: {
+    position: 'relative',
+    marginBottom: 14,
+  },
+  fotoDuelo: {
+    width: 160,
+    height: 160,
+    borderRadius: 16,
+  },
+  corazonFlotanteContenedor: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  corazonFlotante: {
+    fontSize: 64,
   },
   botonCorazon: {
     width: 52,
@@ -678,17 +790,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   botonAccionSecundaria: {
-    backgroundColor: COLORES.superficie,
-    borderWidth: 1,
-    borderColor: COLORES.acento,
-    paddingVertical: 14,
-    borderRadius: 24,
-    alignItems: 'center',
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   textoBotonAccionSecundaria: {
-    color: COLORES.acento,
+    color: COLORES.textoSecundario,
     fontWeight: '600',
-    fontSize: 15,
+    fontSize: 13,
+    textDecorationLine: 'underline',
   },
   notaMejora: {
     textAlign: 'center',
