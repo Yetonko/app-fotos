@@ -14,6 +14,7 @@ import {
   FotoCandidata,
 } from '@/lib/torneo';
 import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
+import { marcarRevisadoSiProcede } from '@/lib/revisados';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 
@@ -107,6 +108,8 @@ export default function SeleccionScreen() {
   useEffect(() => {
     if (estado.ganadora && grupoId) {
       marcarGanadora(grupoId, estado.ganadora);
+      const numExtras = candidatasOriginales.length - 1 + descartadasPorNitidez.length;
+      marcarRevisadoSiProcede(grupoId, numExtras);
     }
   }, [estado.ganadora, grupoId]);
 

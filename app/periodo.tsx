@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { FlatList, StyleSheet, View, Text } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'expo-image';
 
 import { detectarRafagas, GrupoDetectado } from '@/lib/escaneo';
 import { registrarGrupo } from '@/lib/gruposElegidos';
+import { inicializarRevisados, esRevisado, marcarRevisado } from '@/lib/revisados';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 
 // Misma paleta que el resto de pantallas.
@@ -24,20 +25,32 @@ type GrupoConCandidatas = GrupoDetectado & { candidatas: CandidataConUri[] };
 
 export default function PeriodoScreen() {
   const router = useRouter();
-  const { desde, hasta, etiqueta } = useLocalSearchParams<{
+  const { desde, hasta, etiqueta, id } = useLocalSearchParams<{
     desde?: string;
     hasta?: string;
     etiqueta?: string;
+    id?: string;
   }>();
 
   const [status, setStatus] = useState('Buscando fotos de este periodo...');
   const [previewEscaneo, setPreviewEscaneo] = useState<string | null>(null);
   const [grupos, setGrupos] = useState<GrupoConCandidatas[]>([]);
+  // Se incrementa al volver de seleccion.tsx, para reflejar los grupos que
+  // se hayan marcado como revisados mientras tanto.
+  const [tick, setTick] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setTick((t) => t + 1);
+    }, [])
+  );
 
   useEffect(() => {
     if (!desde || !hasta) return;
 
     (async () => {
+      await inicializarRevisados();
+
       const desdeMs = Number(desde);
       const hastaMs = Number(hasta);
 
@@ -81,6 +94,25 @@ export default function PeriodoScreen() {
     })();
   }, [desde, hasta]);
 
+  // Si no hay grupos, o todos los grupos de este periodo ya estan
+  // revisados, se marca el periodo entero como revisado (mismo mecanismo
+  // que en Home, reutilizando marcarRevisado con el id del periodo).
+  useEffect(() => {
+    if (status !== '¡Listo!' || !id) return;
+    const todosRevisados = grupos.length === 0 || grupos.every((g) => esRevisado(g.grupoId));
+    if (todosRevisados) {
+      marcarRevisado(id);
+    }
+  }, [grupos, tick, id, status]);
+
+  // No revisados primero, revisados al final (mismo criterio que en Home).
+  const gruposOrdenados = [...grupos].sort((a, b) => {
+    const aRevisado = esRevisado(a.grupoId);
+    const bRevisado = esRevisado(b.grupoId);
+    if (aRevisado === bRevisado) return 0;
+    return aRevisado ? 1 : -1;
+  });
+
   return (
     <View style={styles.container}>
       <Text style={styles.titulo}>{etiqueta ?? 'Periodo'}</Text>
@@ -105,19 +137,22 @@ export default function PeriodoScreen() {
 
       {status === '¡Listo!' && grupos.length > 0 && (
         <FlatList
-          data={grupos}
+          data={gruposOrdenados}
           keyExtractor={(item) => item.grupoId}
           style={styles.lista}
+          extraData={tick}
           renderItem={({ item, index }) => {
             const portada = item.candidatas[0]?.uri;
+            const revisado = esRevisado(item.grupoId);
             return (
-              <View style={styles.tarjeta}>
+              <View style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}>
                 {portada && (
                   <Image source={{ uri: portada }} style={styles.portada} />
                 )}
                 <View style={styles.tarjetaCuerpo}>
                   <Text style={styles.tarjetaTitulo}>
                     Grupo {index + 1} · {item.fotos.length} fotos casi iguales
+                    {revisado ? '  ·  Revisado ✓' : ''}
                   </Text>
                   <BouncyPressable
                     style={styles.boton}
@@ -190,6 +225,9 @@ const styles = StyleSheet.create({
     borderColor: COLORES.borde,
     overflow: 'hidden',
     marginBottom: 16,
+  },
+  tarjetaRevisada: {
+    opacity: 0.55,
   },
   portada: {
     width: '100%',

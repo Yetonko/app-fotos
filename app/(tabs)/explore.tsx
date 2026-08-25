@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import * as MediaLibrary from 'expo-media-library';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
+import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
 // mismo patrón que ya usan esas pantallas.
@@ -47,10 +48,21 @@ export default function ExploreScreen() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [periodos, setPeriodos] = useState<PeriodoConConteo[]>([]);
+  // Se incrementa al volver de periodo.tsx, para reflejar los periodos que
+  // se hayan marcado como revisados mientras tanto.
+  const [tick, setTick] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setTick((t) => t + 1);
+    }, [])
+  );
 
   useEffect(() => {
     (async () => {
       try {
+        await inicializarRevisados();
+
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
           setError(`No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${DISPOSITIVO}.`);
@@ -96,12 +108,22 @@ export default function ExploreScreen() {
     router.push({
       pathname: '/periodo',
       params: {
+        id: periodo.id,
         desde: String(periodo.desde),
         hasta: String(periodo.hasta),
         etiqueta: periodo.etiqueta,
       },
     });
   };
+
+  // No revisados primero, revisados al final (mismo criterio que en Home
+  // y en los grupos dentro de cada periodo).
+  const periodosOrdenados = [...periodos].sort((a, b) => {
+    const aRevisado = esRevisado(a.id);
+    const bRevisado = esRevisado(b.id);
+    if (aRevisado === bRevisado) return 0;
+    return aRevisado ? 1 : -1;
+  });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
@@ -130,22 +152,32 @@ export default function ExploreScreen() {
 
       {!cargando && !error && periodos.length > 0 && (
         <FlatList
-          data={periodos}
+          data={periodosOrdenados}
           keyExtractor={(item) => item.id}
           style={styles.lista}
-          renderItem={({ item }) => (
-            <BouncyPressable style={styles.tarjeta} onPress={() => tocarPeriodo(item)}>
-              <View>
-                <Text style={styles.tarjetaTitulo}>{item.etiqueta}</Text>
-                <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
-                {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
-                  <Text style={styles.tarjetaAviso}>
-                    Son bastantes fotos, revisarlas puede tardar un poco más de lo normal
+          extraData={tick}
+          renderItem={({ item }) => {
+            const revisado = esRevisado(item.id);
+            return (
+              <BouncyPressable
+                style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}
+                onPress={() => tocarPeriodo(item)}
+              >
+                <View>
+                  <Text style={styles.tarjetaTitulo}>
+                    {item.etiqueta}
+                    {revisado ? '  ·  Revisado ✓' : ''}
                   </Text>
-                )}
-              </View>
-            </BouncyPressable>
-          )}
+                  <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
+                  {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
+                    <Text style={styles.tarjetaAviso}>
+                      Son bastantes fotos, revisarlas puede tardar un poco más de lo normal
+                    </Text>
+                  )}
+                </View>
+              </BouncyPressable>
+            );
+          }}
         />
       )}
     </View>
@@ -205,6 +237,9 @@ const styles = StyleSheet.create({
     borderColor: COLORES.borde,
     padding: 16,
     marginBottom: 12,
+  },
+  tarjetaRevisada: {
+    opacity: 0.55,
   },
   tarjetaTitulo: {
     fontSize: 17,

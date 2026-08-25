@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GrupoFotos } from '@/lib/agrupar';
 import { detectarRafagas } from '@/lib/escaneo';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
+import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { Image } from 'expo-image';
@@ -73,6 +74,8 @@ export default function HomeScreen() {
         return;
       }
 
+      await inicializarRevisados();
+
       const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
 
       if (permisoStatus !== 'granted') {
@@ -132,6 +135,15 @@ export default function HomeScreen() {
     });
   };
 
+  // No revisados primero, revisados al final (con su orden relativo
+  // intacto en cada bloque, ya que Array.sort es estable).
+  const gruposOrdenados = [...grupos].sort((a, b) => {
+    const aRevisado = esRevisado(a.grupoId);
+    const bRevisado = esRevisado(b.grupoId);
+    if (aRevisado === bRevisado) return 0;
+    return aRevisado ? 1 : -1;
+  });
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <Text style={styles.titulo}>Fondly</Text>
@@ -170,16 +182,17 @@ export default function HomeScreen() {
 
       {status === '¡Listo!' && (
         <FlatList
-        data={grupos}
+        data={gruposOrdenados}
         keyExtractor={(item) => item.grupoId}
         style={styles.lista}
         extraData={tick}
         renderItem={({ item, index }) => {
           const ganadora = obtenerGanadora(item.grupoId);
           const portada = ganadora?.uri ?? item.candidatas[0]?.uri;
+          const revisado = esRevisado(item.grupoId);
 
           return (
-            <View style={styles.tarjeta}>
+            <View style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}>
               {portada ? (
                 <View style={styles.portadaContenedor}>
                   <Image source={{ uri: portada }} style={styles.portada} />
@@ -194,6 +207,7 @@ export default function HomeScreen() {
               <View style={styles.tarjetaCuerpo}>
                 <Text style={styles.tarjetaTitulo}>
                   Grupo {index + 1} · {item.fotos.length} fotos casi iguales
+                  {revisado ? '  ·  Revisado ✓' : ''}
                 </Text>
 
                 {item.candidatas.length > 0 && (
@@ -314,6 +328,9 @@ const styles = StyleSheet.create({
     borderColor: COLORES.borde,
     marginBottom: 16,
     overflow: 'hidden',
+  },
+  tarjetaRevisada: {
+    opacity: 0.55,
   },
   portadaContenedor: {
     position: 'relative',
