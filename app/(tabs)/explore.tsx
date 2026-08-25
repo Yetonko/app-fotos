@@ -1,112 +1,226 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import { BouncyPressable } from '@/components/bouncy-pressable';
+import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
 
-export default function TabTwoScreen() {
+// Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
+// mismo patrón que ya usan esas pantallas.
+const COLORES = {
+  fondo: '#F5EFE3',
+  superficie: '#FFFFFF',
+  borde: '#EAE2D0',
+  acento: '#D98C7A',
+  acentoSuave: '#F4DCD3',
+  acentoOscuro: '#3B2A28',
+  texto: '#2B2420',
+  textoSecundario: '#8C8171',
+};
+
+const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
+
+// A partir de este número de fotos en el periodo, avisamos de que puede
+// tardar un poco más de lo normal — no bloqueamos el acceso, solo avisamos
+// (así lo decidimos: informar antes de entrar y dejar decidir al usuario).
+const AVISO_MUCHAS_FOTOS = 800;
+
+type PeriodoConConteo = Periodo & { totalFotos: number };
+
+function formatearConteo(n: number): string {
+  const numero = n.toLocaleString('es-ES');
+  return `${numero} ${n === 1 ? 'foto' : 'fotos'}`;
+}
+
+export default function ExploreScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [periodos, setPeriodos] = useState<PeriodoConConteo[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== 'granted') {
+          setError(`No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${DISPOSITIVO}.`);
+          setCargando(false);
+          return;
+        }
+
+        // La foto más antigua marca hasta dónde hay que generar periodos.
+        const primera = await MediaLibrary.getAssetsAsync({
+          mediaType: 'photo',
+          first: 1,
+          sortBy: [[MediaLibrary.SortBy.creationTime, true]], // ascendente = la más antigua
+        });
+
+        if (primera.assets.length === 0) {
+          setPeriodos([]);
+          setCargando(false);
+          return;
+        }
+
+        const fechaMasAntigua = primera.assets[0].creationTime;
+        const base = generarPeriodos(fechaMasAntigua);
+
+        // El conteo de cada periodo es barato (no descarga fotos), así que
+        // se piden todos a la vez en paralelo.
+        const conConteo = await Promise.all(
+          base.map(async (periodo) => ({
+            ...periodo,
+            totalFotos: await contarFotosEnPeriodo(periodo),
+          }))
+        );
+
+        setPeriodos(conConteo.filter((p) => p.totalFotos > 0));
+      } catch {
+        setError('No hemos podido revisar tus periodos. Inténtalo de nuevo.');
+      } finally {
+        setCargando(false);
+      }
+    })();
+  }, []);
+
+  const tocarPeriodo = (periodo: PeriodoConConteo) => {
+    router.push({
+      pathname: '/periodo',
+      params: {
+        desde: String(periodo.desde),
+        hasta: String(periodo.hasta),
+        etiqueta: periodo.etiqueta,
+      },
+    });
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
+      <Text style={styles.titulo}>Revisar fotos antiguas</Text>
+      <Text style={styles.subtitulo}>Elige un periodo para limpiarlo cuando quieras</Text>
+
+      {cargando && (
+        <View style={styles.centrado}>
+          <ActivityIndicator color={COLORES.acento} size="large" />
+          <Text style={styles.textoCargando}>Revisando tu carrete por periodos...</Text>
+        </View>
+      )}
+
+      {!cargando && error && (
+        <View style={styles.centrado}>
+          <Text style={styles.textoError}>{error}</Text>
+        </View>
+      )}
+
+      {!cargando && !error && periodos.length === 0 && (
+        <View style={styles.centrado}>
+          <Text style={styles.emoji}>📅</Text>
+          <Text style={styles.textoVacio}>No hemos encontrado fotos en tu carrete todavía.</Text>
+        </View>
+      )}
+
+      {!cargando && !error && periodos.length > 0 && (
+        <FlatList
+          data={periodos}
+          keyExtractor={(item) => item.id}
+          style={styles.lista}
+          renderItem={({ item }) => (
+            <BouncyPressable style={styles.tarjeta} onPress={() => tocarPeriodo(item)}>
+              <View>
+                <Text style={styles.tarjetaTitulo}>{item.etiqueta}</Text>
+                <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
+                {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
+                  <Text style={styles.tarjetaAviso}>
+                    Son bastantes fotos, revisarlas puede tardar un poco más de lo normal
+                  </Text>
+                )}
+              </View>
+            </BouncyPressable>
+          )}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: COLORES.fondo,
+    paddingHorizontal: 20,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  titulo: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORES.texto,
+    marginBottom: 4,
+  },
+  subtitulo: {
+    fontSize: 14,
+    color: COLORES.textoSecundario,
+    marginBottom: 20,
+  },
+  centrado: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  textoCargando: {
+    marginTop: 14,
+    fontSize: 14,
+    color: COLORES.textoSecundario,
+    textAlign: 'center',
+  },
+  textoError: {
+    fontSize: 15,
+    color: COLORES.texto,
+    textAlign: 'center',
+  },
+  textoVacio: {
+    fontSize: 15,
+    color: COLORES.textoSecundario,
+    textAlign: 'center',
+  },
+  lista: {
+    flex: 1,
+  },
+  tarjeta: {
+    backgroundColor: COLORES.superficie,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORES.borde,
+    padding: 16,
+    marginBottom: 12,
+  },
+  tarjetaTitulo: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORES.texto,
+    marginBottom: 4,
+  },
+  tarjetaConteo: {
+    fontSize: 14,
+    color: COLORES.acentoOscuro,
+    fontWeight: '600',
+  },
+  tarjetaAviso: {
+    fontSize: 12,
+    color: COLORES.textoSecundario,
+    marginTop: 6,
+    fontStyle: 'italic',
   },
 });

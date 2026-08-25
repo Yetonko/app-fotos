@@ -7,7 +7,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { GrupoFotos } from '@/lib/agrupar';
 import { detectarRafagas } from '@/lib/escaneo';
-import { calcularNitidez, esBorrosa } from '@/lib/nitidez';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
@@ -31,7 +30,7 @@ const COLORES = {
 // caso (Android), sin necesidad de ninguna librería nueva.
 const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
 
-type CandidataConUri = { id: string; uri: string; nitidez: number };
+type CandidataConUri = { id: string; uri: string; nitidez?: number };
 
 type GrupoConDistancias = GrupoFotos & {
   distancias: number[];
@@ -104,44 +103,18 @@ export default function HomeScreen() {
           setPreviewEscaneo(primeraFotoUri || null);
         },
         onGrupo: async (grupo) => {
-          // Igual con la nitidez: se lanzan todas las fotos del grupo a la vez.
-          const resultadosNitidez = await Promise.all(
-            grupo.fotosConUri.map(async (foto) => {
-              const nitidez = await calcularNitidez(foto.id);
-              return { id: foto.id, uri: foto.uri, nitidez };
-            })
-          );
+          const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
+            id: foto.id,
+            uri: foto.uri,
+          }));
 
-          const candidatas: CandidataConUri[] = [];
-          const descartadasDetalle: CandidataConUri[] = [];
-          for (const fotoConNitidez of resultadosNitidez) {
-            if (esBorrosa(fotoConNitidez.nitidez)) {
-              descartadasDetalle.push(fotoConNitidez);
-            } else {
-              candidatas.push(fotoConNitidez);
-            }
-          }
-
-          // Salvaguarda: si el filtro descartó todas, rescatamos la de mayor
-          // nitidez para que el usuario siempre tenga al menos una opción
-          // entre la que elegir.
-          if (candidatas.length === 0 && descartadasDetalle.length > 0) {
-            descartadasDetalle.sort((a, b) => b.nitidez - a.nitidez);
-            const rescatada = descartadasDetalle.shift()!;
-            candidatas.push(rescatada);
-          }
-
-          registrarGrupo(
-            grupo.grupoId,
-            candidatas.map((c) => ({ id: c.id, uri: c.uri, nitidez: c.nitidez })),
-            descartadasDetalle.map((d) => ({ id: d.id, uri: d.uri, nitidez: d.nitidez }))
-          );
+          registrarGrupo(grupo.grupoId, candidatas, []);
 
           const { fotosConUri, ...grupoBase } = grupo;
           gruposConDistancias.push({
             ...grupoBase,
             candidatas,
-            descartadas: descartadasDetalle,
+            descartadas: [],
           });
         },
       });

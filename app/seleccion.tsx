@@ -238,7 +238,8 @@ export default function SeleccionScreen() {
                 '¡Listo!',
                 tamanoTexto
                   ? `Has liberado ${tamanoTexto} de espacio.`
-                  : 'Se han borrado las fotos que no elegiste.'
+                  : 'Se han borrado las fotos que no elegiste.',
+                [{ text: 'Volver a mis fotos', onPress: () => router.back() }]
               );
             } catch {
               Alert.alert(
