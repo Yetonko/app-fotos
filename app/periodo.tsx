@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { FlatList, StyleSheet, View, Text } from 'react-native';
+import { FlatList, StyleSheet, View, Text, Pressable } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'expo-image';
 
 import { detectarRafagas, GrupoDetectado } from '@/lib/escaneo';
 import { registrarGrupo } from '@/lib/gruposElegidos';
 import { inicializarRevisados, esRevisado, marcarRevisado } from '@/lib/revisados';
+import {
+  inicializarEtiquetas,
+  obtenerNombreActividad,
+  guardarNombreActividad,
+  formatearEtiqueta,
+  formatearFecha,
+} from '@/lib/etiquetas';
+import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 
 // Misma paleta que el resto de pantallas.
@@ -15,6 +23,7 @@ const COLORES = {
   superficie: '#FFFFFF',
   borde: '#EAE2D0',
   acento: '#D98C7A',
+  acentoSuave: '#F4DCD3',
   acentoOscuro: '#3B2A28',
   texto: '#2B2420',
   textoSecundario: '#8C8171',
@@ -45,11 +54,15 @@ export default function PeriodoScreen() {
     }, [])
   );
 
+  // Id del grupo cuyo modal de etiqueta esta abierto ahora mismo, o null.
+  const [grupoEditando, setGrupoEditando] = useState<string | null>(null);
+
   useEffect(() => {
     if (!desde || !hasta) return;
 
     (async () => {
       await inicializarRevisados();
+      await inicializarEtiquetas();
 
       const desdeMs = Number(desde);
       const hastaMs = Number(hasta);
@@ -82,7 +95,7 @@ export default function PeriodoScreen() {
             uri: foto.uri,
           }));
 
-          registrarGrupo(grupo.grupoId, candidatas, []);
+          registrarGrupo(grupo.grupoId, candidatas, [], grupo.fotos[0]?.creationTime);
 
           resultado.push({ ...grupo, candidatas });
         },
@@ -112,6 +125,14 @@ export default function PeriodoScreen() {
     if (aRevisado === bRevisado) return 0;
     return aRevisado ? 1 : -1;
   });
+
+  const guardarEtiquetaGrupo = async (nombre: string) => {
+    if (!grupoEditando) return;
+    await guardarNombreActividad(grupoEditando, nombre);
+    setTick((t) => t + 1);
+  };
+
+  const grupoEditandoData = grupos.find((g) => g.grupoId === grupoEditando);
 
   return (
     <View style={styles.container}>
@@ -154,6 +175,11 @@ export default function PeriodoScreen() {
                     Grupo {index + 1} · {item.fotos.length} fotos casi iguales
                     {revisado ? '  ·  Revisado ✓' : ''}
                   </Text>
+                  <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>
+                    <Text style={styles.tarjetaEtiqueta}>
+                      {formatearEtiqueta(item.grupoId, item.fotos[0].creationTime)} ✏️
+                    </Text>
+                  </Pressable>
                   <BouncyPressable
                     style={styles.boton}
                     onPress={() =>
@@ -168,6 +194,16 @@ export default function PeriodoScreen() {
           }}
         />
       )}
+
+      <EtiquetaModal
+        visible={grupoEditando !== null}
+        valorInicial={grupoEditando ? obtenerNombreActividad(grupoEditando) ?? '' : ''}
+        etiquetaFecha={
+          grupoEditandoData ? formatearFecha(grupoEditandoData.fotos[0].creationTime) : ''
+        }
+        onGuardar={guardarEtiquetaGrupo}
+        onCerrar={() => setGrupoEditando(null)}
+      />
     </View>
   );
 }
@@ -241,6 +277,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORES.texto,
     marginBottom: 10,
+  },
+  tarjetaEtiqueta: {
+    alignSelf: 'flex-start',
+    color: COLORES.acentoOscuro,
+    fontSize: 12,
+    fontWeight: '700',
+    backgroundColor: COLORES.acentoSuave,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+    overflow: 'hidden',
   },
   boton: {
     backgroundColor: COLORES.acento,

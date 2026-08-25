@@ -9,6 +9,14 @@ import { GrupoFotos } from '@/lib/agrupar';
 import { detectarRafagas } from '@/lib/escaneo';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
+import {
+  inicializarEtiquetas,
+  obtenerNombreActividad,
+  guardarNombreActividad,
+  formatearEtiqueta,
+  formatearFecha,
+} from '@/lib/etiquetas';
+import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { Image } from 'expo-image';
@@ -53,6 +61,9 @@ export default function HomeScreen() {
   // Se incrementa cada vez que la pantalla vuelve a tener el foco, para forzar
   // un re-render y reflejar las ganadoras marcadas en gruposElegidos.ts.
   const [tick, setTick] = useState(0);
+  // Id del grupo cuyo modal de etiqueta esta abierto ahora mismo, o null
+  // si no hay ninguno abierto.
+  const [grupoEditando, setGrupoEditando] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,6 +86,7 @@ export default function HomeScreen() {
       }
 
       await inicializarRevisados();
+      await inicializarEtiquetas();
 
       const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
 
@@ -111,7 +123,7 @@ export default function HomeScreen() {
             uri: foto.uri,
           }));
 
-          registrarGrupo(grupo.grupoId, candidatas, []);
+          registrarGrupo(grupo.grupoId, candidatas, [], grupo.fotos[0]?.creationTime);
 
           const { fotosConUri, ...grupoBase } = grupo;
           gruposConDistancias.push({
@@ -135,6 +147,12 @@ export default function HomeScreen() {
     });
   };
 
+  const guardarEtiquetaGrupo = async (nombre: string) => {
+    if (!grupoEditando) return;
+    await guardarNombreActividad(grupoEditando, nombre);
+    setTick((t) => t + 1);
+  };
+
   // No revisados primero, revisados al final (con su orden relativo
   // intacto en cada bloque, ya que Array.sort es estable).
   const gruposOrdenados = [...grupos].sort((a, b) => {
@@ -143,6 +161,8 @@ export default function HomeScreen() {
     if (aRevisado === bRevisado) return 0;
     return aRevisado ? 1 : -1;
   });
+
+  const grupoEditandoData = grupos.find((g) => g.grupoId === grupoEditando);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
@@ -210,6 +230,12 @@ export default function HomeScreen() {
                   {revisado ? '  ·  Revisado ✓' : ''}
                 </Text>
 
+                <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>
+                  <Text style={styles.tarjetaEtiqueta}>
+                    {formatearEtiqueta(item.grupoId, item.fotos[0].creationTime)} ✏️
+                  </Text>
+                </Pressable>
+
                 {item.candidatas.length > 0 && (
                   <BouncyPressable
                     style={ganadora ? styles.botonSecundario : styles.botonGrupo}
@@ -241,6 +267,16 @@ export default function HomeScreen() {
         }
         />
       )}
+
+      <EtiquetaModal
+        visible={grupoEditando !== null}
+        valorInicial={grupoEditando ? obtenerNombreActividad(grupoEditando) ?? '' : ''}
+        etiquetaFecha={
+          grupoEditandoData ? formatearFecha(grupoEditandoData.fotos[0].creationTime) : ''
+        }
+        onGuardar={guardarEtiquetaGrupo}
+        onCerrar={() => setGrupoEditando(null)}
+      />
     </View>
   );
 }
@@ -363,6 +399,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 10,
+  },
+  tarjetaEtiqueta: {
+    alignSelf: 'flex-start',
+    color: COLORES.acentoOscuro,
+    fontSize: 12,
+    fontWeight: '700',
+    backgroundColor: COLORES.acentoSuave,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 10,
+    overflow: 'hidden',
   },
 
   botonGrupo: {

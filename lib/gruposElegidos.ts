@@ -4,6 +4,11 @@ export type GrupoAlmacenado = {
   candidatas: FotoCandidata[];
   descartadas: FotoCandidata[];
   ganadora?: FotoCandidata;
+  // Fecha (creationTime) de la primera foto del grupo. Se usa para
+  // mostrar la etiqueta de anio/mes en seleccion.tsx sin tener que volver
+  // a consultar el carrete. Opcional por retrocompatibilidad, aunque en
+  // la practica siempre se informa desde index.tsx / periodo.tsx.
+  creationTime?: number;
 };
 
 // Guarda en memoria, mientras la app está abierta, los datos de cada grupo de
@@ -22,13 +27,15 @@ const gruposPorId = new Map<string, GrupoAlmacenado>();
 export function registrarGrupo(
   grupoId: string,
   candidatas: FotoCandidata[],
-  descartadas: FotoCandidata[]
+  descartadas: FotoCandidata[],
+  creationTime?: number
 ) {
   const actual = gruposPorId.get(grupoId);
   gruposPorId.set(grupoId, {
     candidatas,
     descartadas,
     ganadora: actual?.ganadora,
+    creationTime: creationTime ?? actual?.creationTime,
   });
 }
 

@@ -15,6 +15,8 @@ import {
 } from '@/lib/torneo';
 import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { marcarRevisadoSiProcede } from '@/lib/revisados';
+import { obtenerNombreActividad, guardarNombreActividad, formatearFecha } from '@/lib/etiquetas';
+import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 
@@ -97,6 +99,9 @@ export default function SeleccionScreen() {
   // Tamaño en bytes que se liberaría borrando lo que no se ha marcado para
   // conservar. null mientras se está calculando (o todavía no hay ganadora).
   const [tamanoALiberar, setTamanoALiberar] = useState<number | null>(null);
+  // Se abre automaticamente la primera vez que se termina el torneo de un
+  // grupo sin nombre de actividad puesto todavia.
+  const [mostrarEtiquetaModal, setMostrarEtiquetaModal] = useState(false);
 
   const pareja = parejaActual(estado);
 
@@ -110,6 +115,9 @@ export default function SeleccionScreen() {
       marcarGanadora(grupoId, estado.ganadora);
       const numExtras = candidatasOriginales.length - 1 + descartadasPorNitidez.length;
       marcarRevisadoSiProcede(grupoId, numExtras);
+      if (!obtenerNombreActividad(grupoId)) {
+        setMostrarEtiquetaModal(true);
+      }
     }
   }, [estado.ganadora, grupoId]);
 
@@ -434,6 +442,17 @@ export default function SeleccionScreen() {
           uri={fotoAmpliada}
           visible={!!fotoAmpliada}
           onClose={() => setFotoAmpliada(null)}
+        />
+        <EtiquetaModal
+          visible={mostrarEtiquetaModal}
+          valorInicial=""
+          etiquetaFecha={grupo.creationTime ? formatearFecha(grupo.creationTime) : ''}
+          onGuardar={async (nombre) => {
+            if (grupoId) {
+              await guardarNombreActividad(grupoId, nombre);
+            }
+          }}
+          onCerrar={() => setMostrarEtiquetaModal(false)}
         />
       </View>
     );
