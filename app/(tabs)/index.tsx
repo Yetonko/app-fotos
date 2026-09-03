@@ -215,17 +215,7 @@ export default function HomeScreen() {
       <Text style={styles.titulo}>Fondly</Text>
       <Text style={styles.insigniaPrivacidad}>🔒 100% en tu {DISPOSITIVO}</Text>
 
-      {__DEV__ && (
-        <Pressable
-          style={styles.botonDevReset}
-          onPress={async () => {
-            await AsyncStorage.removeItem(CLAVE_ONBOARDING_VISTO);
-            router.replace('/bienvenida');
-          }}
-        >
-          <Text style={styles.textoDevReset}>🛠 Ver onboarding de nuevo (solo dev)</Text>
-        </Pressable>
-      )}
+
 
       {status !== '¡Listo!' && (
         <View style={styles.escaneoContenedor}>

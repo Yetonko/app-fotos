@@ -512,13 +512,7 @@ export default function SeleccionScreen() {
                                 <Text style={styles.miniaturaExtraBorrosaTexto}>Borrosa</Text>
                               </View>
                             )}
-                            {__DEV__ && foto.nitidez !== undefined && (
-                              <View style={styles.miniaturaExtraDebug}>
-                                <Text style={styles.miniaturaExtraDebugTexto}>
-                                  {Math.round(foto.nitidez)}
-                                </Text>
-                              </View>
-                            )}
+
                             {seleccionada && (
                               <View style={styles.miniaturaExtraCheck}>
                                 <Text style={styles.miniaturaExtraCheckTexto}>✓</Text>
