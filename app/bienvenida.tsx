@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, View, Text, Platform, PanResponder } from 'react-native';
+import { StyleSheet, View, Text, Platform, PanResponder, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -69,6 +69,15 @@ export default function BienvenidaScreen() {
     router.replace('/');
   };
 
+  // Retrocede un paso (swipe hacia la derecha o el enlace "‹ Atrás"). No
+  // hace nada en el primer paso: no hay a donde volver.
+  const anterior = () => {
+    if (pasoActual.current > 0) {
+      pasoActual.current -= 1;
+      setPaso(pasoActual.current);
+    }
+  };
+
   // Permite avanzar de paso deslizando el dedo hacia la izquierda, además
   // del botón. onMoveShouldSetPanResponder exige que el movimiento sea
   // claramente horizontal (más ancho que alto) antes de "capturar" el
@@ -80,6 +89,8 @@ export default function BienvenidaScreen() {
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dx < -60) {
           siguiente();
+        } else if (gestureState.dx > 60) {
+          anterior();
         }
       },
     })
@@ -89,6 +100,15 @@ export default function BienvenidaScreen() {
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
+      <Pressable
+        onPress={anterior}
+        disabled={paso === 0}
+        hitSlop={10}
+        style={[styles.botonAtras, paso === 0 && styles.botonAtrasOculto]}
+      >
+        <Text style={styles.textoAtras}>‹ Atrás</Text>
+      </Pressable>
+
       <View style={styles.contenido}>
         <Text style={styles.emoji}>{actual.emoji}</Text>
         <Text style={styles.titulo}>{actual.titulo}</Text>
@@ -120,6 +140,22 @@ const styles = StyleSheet.create({
   contenido: {
     alignItems: 'center',
     paddingHorizontal: 30,
+  },
+  botonAtras: {
+    position: 'absolute',
+    top: 55,
+    left: 20,
+    zIndex: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  botonAtrasOculto: {
+    opacity: 0,
+  },
+  textoAtras: {
+    color: COLORES.textoSecundario,
+    fontSize: 15,
+    fontWeight: '600',
   },
   emoji: {
     fontSize: 64,

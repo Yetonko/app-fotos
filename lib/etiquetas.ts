@@ -77,3 +77,42 @@ export function formatearEtiqueta(grupoId: string, creationTime: number): string
   const nombre = obtenerNombreActividad(grupoId) ?? SIN_ETIQUETAR;
   return `${formatearFecha(creationTime)} · ${nombre}`;
 }
+
+// Palabras muy comunes que no aportan nada como "álbum" por si solas (ej.
+// "Excursión de Bret" no deberia crear un album "de"). Deliberadamente no
+// se filtra por longitud de palabra: nombres cortos como "Ana" o "Bob"
+// tienen que seguir contando.
+const PALABRAS_COMUNES = new Set([
+  'de', 'la', 'el', 'en', 'con', 'un', 'una', 'unos', 'unas', 'los', 'las',
+  'y', 'o', 'a', 'al', 'del', 'para', 'por', 'se', 'su', 'sus', 'mi', 'mis',
+  'tu', 'tus', 'es', 'son', 'fue', 'ya', 'no', 'si', 'sí', 'más', 'mas',
+  'tan', 'muy', 'pero', 'este', 'esta', 'estos', 'estas', 'ese', 'esa',
+  'esos', 'esas', 'lo', 'le', 'les', 'nos', 'que', 'como', 'cuando', 'donde',
+]);
+
+// Divide el nombre de actividad en palabras "significativas" (para usar
+// como álbumes independientes): quita signos de puntuación sueltos,
+// descarta palabras muy comunes y palabras de menos de 3 letras, y
+// elimina duplicados dentro del mismo nombre. Se conserva la mayúscula
+// original de cada palabra (quien la use para mostrarla decide si la
+// normaliza). Ej: "Excursión Bret" -> ["Excursión", "Bret"].
+export function extraerPalabrasClave(nombre: string): string[] {
+  const tokens = nombre
+    .split(/\s+/)
+    .map((token) => token.replace(/[.,;:!?¿¡"'()\[\]{}]/g, '').trim())
+    .filter(Boolean);
+
+  const vistas = new Set<string>();
+  const resultado: string[] = [];
+
+  for (const token of tokens) {
+    if (token.length < 3) continue;
+    const clave = token.toLowerCase();
+    if (PALABRAS_COMUNES.has(clave)) continue;
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    resultado.push(token);
+  }
+
+  return resultado;
+}

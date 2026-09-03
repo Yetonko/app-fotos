@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { FlatList, StyleSheet, Pressable, View, Text, Platform } from 'react-native';
+import { FlatList, StyleSheet, Pressable, View, Text, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,6 +38,15 @@ const COLORES = {
 // Igual que en bienvenida.tsx: "iPhone" en iOS, "móvil" en cualquier otro
 // caso (Android), sin necesidad de ninguna librería nueva.
 const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
+
+// La papelera de 30 días de "Eliminados recientemente" es un comportamiento
+// verificado de iOS. En Android varía según el fabricante y la app de
+// galería, así que ahí evitamos prometer un número de días o un nombre de
+// carpeta concretos. (Mismo texto que en seleccion.tsx.)
+const TEXTO_RECUPERACION =
+  Platform.OS === 'ios'
+    ? 'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.'
+    : 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.';
 
 type CandidataConUri = { id: string; uri: string; nitidez?: number };
 
@@ -147,6 +156,43 @@ export default function HomeScreen() {
     });
   };
 
+  // Borra el grupo entero (todas sus fotos, sin elegir ninguna) para casos
+  // de fotos-recordatorio (ej. una foto de un ticket o una pizarra) donde
+  // ninguna merece quedarse. Distinto del borrado que hace seleccion.tsx,
+  // que siempre parte de haber elegido una ganadora primero.
+  const descartarGrupoCompleto = (item: GrupoConDistancias) => {
+    const idsTodo = item.candidatas.map((c) => c.id);
+    Alert.alert(
+      'Borrar todas las fotos',
+      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de este momento, sin elegir ninguna. ${TEXTO_RECUPERACION}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar todas',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
+              if (!borradoOk) {
+                Alert.alert(
+                  'No se ha borrado nada',
+                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                );
+                return;
+              }
+              setGrupos((actuales) => actuales.filter((g) => g.grupoId !== item.grupoId));
+            } catch {
+              Alert.alert(
+                'No hemos podido eliminar las fotos.',
+                'Revisa los permisos e inténtalo de nuevo.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const guardarEtiquetaGrupo = async (nombre: string) => {
     if (!grupoEditando) return;
     await guardarNombreActividad(grupoEditando, nombre);
@@ -253,6 +299,16 @@ export default function HomeScreen() {
                         : 'Elegir la mejor foto ✨'}
                     </Text>
                   </BouncyPressable>
+                )}
+
+                {!ganadora && item.candidatas.length > 0 && (
+                  <Pressable
+                    style={styles.botonDescartarGrupo}
+                    onPress={() => descartarGrupoCompleto(item)}
+                    hitSlop={6}
+                  >
+                    <Text style={styles.textoDescartarGrupo}>🗑 No quiero ninguna de estas</Text>
+                  </Pressable>
                 )}
               </View>
             </View>
@@ -438,6 +494,17 @@ const styles = StyleSheet.create({
     color: COLORES.acento,
     fontWeight: '600',
     fontSize: 13,
+  },
+  botonDescartarGrupo: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  textoDescartarGrupo: {
+    color: COLORES.textoSecundario,
+    fontSize: 12,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   tarjetaExplorar: {
     backgroundColor: COLORES.acentoSuave,

@@ -15,6 +15,8 @@ import {
 } from '@/lib/torneo';
 import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { marcarRevisadoSiProcede } from '@/lib/revisados';
+import { registrarMomento } from '@/lib/momentos';
+import { inicializarCoachmarks, coachmarkVisto, marcarCoachmarkVisto } from '@/lib/coachmarks';
 import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formatearEtiqueta } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
@@ -31,6 +33,7 @@ const COLORES = {
   texto: '#2B2420',
   textoSecundario: '#8C8171',
   peligro: '#C15C4E',
+  peligroSuave: '#F3DCD6',
 };
 // -------------------------------------------------------------------------
 
@@ -107,6 +110,14 @@ export default function SeleccionScreen() {
   // de React, asi que necesita un disparador propio para re-renderizar).
   const [tickEtiqueta, setTickEtiqueta] = useState(0);
 
+  // Se carga una vez al entrar a la pantalla; el tick fuerza un re-render
+  // cuando termina de cargar, para que coachmarkVisto() ya lea del cache
+  // en vez de asumir "no visto" por defecto.
+  const [tickCoachmarks, setTickCoachmarks] = useState(0);
+  useEffect(() => {
+    inicializarCoachmarks().then(() => setTickCoachmarks((t) => t + 1));
+  }, []);
+
   const pareja = parejaActual(estado);
 
   const elegir = (foto: FotoCandidata) => {
@@ -135,6 +146,7 @@ export default function SeleccionScreen() {
       ultimoToqueRef.current[foto.id] = 0;
       setCorazonAnimado(foto.id);
       setTimeout(() => setCorazonAnimado(null), 500);
+      marcarCoachmarkVisto('torneo_doble_tap');
       elegir(foto);
     } else {
       ultimoToqueRef.current[foto.id] = ahora;
@@ -150,6 +162,9 @@ export default function SeleccionScreen() {
       marcarGanadora(grupoId, estado.ganadora);
       const numExtras = candidatasOriginales.length - 1 + descartadasPorNitidez.length;
       marcarRevisadoSiProcede(grupoId, numExtras);
+      if (grupo?.creationTime) {
+        registrarMomento(grupoId, estado.ganadora, grupo.creationTime);
+      }
       Alert.alert('¡Ya tienes tu foto! ¿La publicamos?', undefined, [
         { text: 'Ahora no', style: 'cancel' },
         { text: 'Publicar', onPress: compartir },
@@ -278,7 +293,14 @@ export default function SeleccionScreen() {
             try {
               const fotosABorrar = resto.filter((f) => idsABorrar.includes(f.id));
               const tamanoLiberado = await calcularTamanoTotal(fotosABorrar);
-              await MediaLibrary.deleteAssetsAsync(idsABorrar);
+              const borradoOk = await MediaLibrary.deleteAssetsAsync(idsABorrar);
+              if (!borradoOk) {
+                Alert.alert(
+                  'No se ha borrado nada',
+                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                );
+                return;
+              }
               setExtrasSeleccionadas([]);
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
@@ -304,6 +326,57 @@ export default function SeleccionScreen() {
 
   const borrarResto = () => {
     confirmarYBorrarFotos(resto.map((f) => f.id));
+  };
+
+  // Borra TODAS las fotos del grupo, incluida la ganadora: para casos de
+  // fotos-recordatorio (ej. un ticket, una pizarra) donde, tras ver la
+  // "elegida", el usuario se da cuenta de que en realidad no quiere
+  // quedarse con ninguna. A diferencia de confirmarYBorrarFotos (que
+  // siempre respeta la ganadora), aquí se borra todo sin excepción.
+  const borrarGrupoCompleto = () => {
+    if (!estado.ganadora) return;
+    const todasLasFotos = [...candidatasOriginales, ...descartadasPorNitidez];
+    const idsTodo = todasLasFotos.map((f) => f.id);
+    Alert.alert(
+      'Borrar todas las fotos',
+      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de esta ráfaga, incluida la que elegiste. ${TEXTO_RECUPERACION}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar todas',
+          style: 'destructive',
+          onPress: async () => {
+            setBorrando(true);
+            try {
+              const tamanoLiberado = await calcularTamanoTotal(todasLasFotos);
+              const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
+              if (!borradoOk) {
+                Alert.alert(
+                  'No se ha borrado nada',
+                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                );
+                return;
+              }
+              const tamanoTexto = formatearTamano(tamanoLiberado);
+              Alert.alert(
+                '¡Listo!',
+                tamanoTexto
+                  ? `Has liberado ${tamanoTexto} de espacio.`
+                  : 'Se han borrado todas las fotos de esta ráfaga.',
+                [{ text: 'Volver a mis fotos', onPress: () => router.back() }]
+              );
+            } catch {
+              Alert.alert(
+                'No hemos podido eliminar las fotos.',
+                'Revisa los permisos e inténtalo de nuevo.'
+              );
+            } finally {
+              setBorrando(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const guardarExtrasYBorrarResto = () => {
@@ -373,17 +446,27 @@ export default function SeleccionScreen() {
             </BouncyPressable>
 
             <BouncyPressable
-              style={styles.botonAccionSecundaria}
+              style={styles.botonBrillo}
               onPress={retocar}
               disabled={mejorando}
             >
-              <Text style={styles.textoBotonAccionSecundaria}>
+              <Text style={styles.textoBotonBrillo}>
                 {mejorando ? 'Mejorando la luz y el contraste...' : 'Dar un toque de brillo ✨'}
               </Text>
             </BouncyPressable>
             {mejorando && (
               <Text style={styles.notaMejora}>Estamos preparando una versión mejorada.</Text>
             )}
+
+            <BouncyPressable
+              style={styles.botonDescartarTodoBoton}
+              onPress={borrarGrupoCompleto}
+              disabled={borrando}
+            >
+              <Text style={styles.textoDescartarTodoBoton}>
+                No quiero ninguna, borrar también esta foto
+              </Text>
+            </BouncyPressable>
           </View>
 
           {resto.length > 0 && (
@@ -402,7 +485,14 @@ export default function SeleccionScreen() {
                   <Text style={styles.extrasSubtitulo}>
                     Elige las que quieras conservar además de la elegida.
                   </Text>
-                  <Text style={styles.pistaZoomExtras}>Toca 🔍 en cada foto para ampliarla antes de decidir</Text>
+                  <Text
+                    style={[
+                      styles.pistaZoomExtras,
+                      !coachmarkVisto('extras_lupa') && styles.pistaZoomExtrasDestacada,
+                    ]}
+                  >
+                    Toca 🔍 en cada foto para ampliarla antes de decidir
+                  </Text>
 
                   <View style={styles.extrasFilaMiniaturas}>
                     {resto.map((foto) => {
@@ -436,7 +526,10 @@ export default function SeleccionScreen() {
                             )}
                             <Pressable
                               style={styles.miniaturaExtraLupa}
-                              onPress={() => setFotoAmpliada(foto.uri)}
+                              onPress={() => {
+                                marcarCoachmarkVisto('extras_lupa');
+                                setFotoAmpliada(foto.uri);
+                              }}
                               hitSlop={8}
                             >
                               <Text style={styles.miniaturaExtraLupaTexto}>🔍</Text>
@@ -529,7 +622,14 @@ export default function SeleccionScreen() {
         </View>
         <Text style={styles.titulo}>¿Cuál prefieres?</Text>
         <Text style={styles.pista}>Elige la que mejor representa el momento.</Text>
-        <Text style={styles.pistaZoom}>Toca dos veces para elegir · toca una vez para ampliar</Text>
+        <Text
+          style={[
+            styles.pistaZoom,
+            !coachmarkVisto('torneo_doble_tap') && styles.pistaZoomDestacada,
+          ]}
+        >
+          Toca dos veces para elegir · toca una vez para ampliar
+        </Text>
 
         <View style={styles.duelo}>
           <View style={styles.opcion}>
@@ -641,6 +741,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  // Version destacada de pistaZoom / pistaZoomExtras: se aplica encima del
+  // estilo base (mismo Text, misma posicion) solo mientras el usuario no
+  // haya hecho el gesto real todavia, para llamar mas la atencion que el
+  // texto gris discreto de siempre.
+  pistaZoomDestacada: {
+    color: COLORES.acentoOscuro,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    fontSize: 13,
+    backgroundColor: COLORES.acentoSuave,
+    borderWidth: 1,
+    borderColor: COLORES.acento,
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    overflow: 'hidden',
+  },
+  pistaZoomExtrasDestacada: {
+    color: COLORES.acentoOscuro,
+    fontStyle: 'normal',
+    fontWeight: '700',
+    fontSize: 13,
+    backgroundColor: COLORES.acentoSuave,
+    borderWidth: 1,
+    borderColor: COLORES.acento,
+    borderRadius: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    overflow: 'hidden',
   },
   opcion: {
     alignItems: 'center',
@@ -789,16 +919,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
-  botonAccionSecundaria: {
-    alignSelf: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+  botonBrillo: {
+    backgroundColor: COLORES.acentoSuave,
+    paddingVertical: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+    marginTop: 4,
   },
-  textoBotonAccionSecundaria: {
-    color: COLORES.textoSecundario,
+  textoBotonBrillo: {
+    color: COLORES.acentoOscuro,
     fontWeight: '600',
-    fontSize: 13,
-    textDecorationLine: 'underline',
+    fontSize: 15,
   },
   notaMejora: {
     textAlign: 'center',
@@ -806,6 +937,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginTop: -4,
+  },
+  botonDescartarTodoBoton: {
+    backgroundColor: COLORES.peligroSuave,
+    paddingVertical: 14,
+    borderRadius: 24,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  textoDescartarTodoBoton: {
+    color: COLORES.peligro,
+    fontWeight: '600',
+    fontSize: 15,
   },
   botonPeligro: {
     backgroundColor: 'transparent',

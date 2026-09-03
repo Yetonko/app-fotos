@@ -30,6 +30,15 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="albumes"
+        options={{
+          title: 'Álbumes',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="photo.on.rectangle" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

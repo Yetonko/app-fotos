@@ -30,7 +30,10 @@ export default function RootLayout() {
             name="periodo"
             options={{ animation: 'fade' }}
           />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen
+            name="album"
+            options={{ animation: 'fade' }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
