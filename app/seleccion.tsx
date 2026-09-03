@@ -282,7 +282,7 @@ export default function SeleccionScreen() {
     if (idsABorrar.length === 0) return;
     Alert.alert(
       'Borrar fotos',
-      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de esta ráfaga. ${TEXTO_RECUPERACION}`,
+      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de este momento. ${TEXTO_RECUPERACION}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -339,7 +339,7 @@ export default function SeleccionScreen() {
     const idsTodo = todasLasFotos.map((f) => f.id);
     Alert.alert(
       'Borrar todas las fotos',
-      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de esta ráfaga, incluida la que elegiste. ${TEXTO_RECUPERACION}`,
+      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de este momento, incluida la que elegiste. ${TEXTO_RECUPERACION}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -362,7 +362,7 @@ export default function SeleccionScreen() {
                 '¡Listo!',
                 tamanoTexto
                   ? `Has liberado ${tamanoTexto} de espacio.`
-                  : 'Se han borrado todas las fotos de esta ráfaga.',
+                  : 'Se han borrado todas las fotos de este momento.',
                 [{ text: 'Volver a mis fotos', onPress: () => router.back() }]
               );
             } catch {
@@ -392,7 +392,7 @@ export default function SeleccionScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.avisoContenedor}>
-          <Text style={styles.titulo}>No encontramos esta ráfaga</Text>
+          <Text style={styles.titulo}>No encontramos este momento</Text>
           <Text style={styles.pista}>
             Puede que la app se haya reiniciado. Vuelve a la lista y ábrela de nuevo.
           </Text>
@@ -481,7 +481,7 @@ export default function SeleccionScreen() {
 
               {resto.length >= 2 && (
                 <>
-                  <Text style={styles.previewEtiqueta}>¿Alguna más de esta ráfaga?</Text>
+                  <Text style={styles.previewEtiqueta}>¿Alguna más de este momento?</Text>
                   <Text style={styles.extrasSubtitulo}>
                     Elige las que quieras conservar además de la elegida.
                   </Text>

@@ -321,7 +321,7 @@ export default function HomeScreen() {
           >
             <Text style={styles.textoExplorar}>📅 Revisar fotos más antiguas</Text>
             <Text style={styles.subtextoExplorar}>
-              Limpia también las ráfagas de otros periodos
+              Elige tus mejores momentos de otros periodos
             </Text>
           </BouncyPressable>
         }
