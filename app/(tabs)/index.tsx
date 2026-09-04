@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { FlatList, StyleSheet, Pressable, View, Text, Platform, Alert } from 'react-native';
+import { Animated, FlatList, StyleSheet, Pressable, View, Text, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -90,7 +90,10 @@ export default function HomeScreen() {
   // Uri de la primera foto del grupo que se está analizando ahora mismo,
   // para mostrarla en la pantalla de carga y que el usuario vea que algo
   // está pasando de verdad, no solo un texto fijo.
-  const [previewEscaneo, setPreviewEscaneo] = useState<string | null>(null);
+  // Pila de uris del escaneo: [actual, anterior, anterior2]. Las de atrás
+  // se muestran atenuadas y giradas, como un montón de fotos sobre la mesa
+  // que la app va repasando. Máximo 3.
+  const [pilaEscaneo, setPilaEscaneo] = useState<string[]>([]);
   // Progreso real del escaneo (0..1) para la barra, sin mostrar números.
   const [progresoEscaneo, setProgresoEscaneo] = useState(0);
   // Índice de la frase cálida que se muestra ahora mismo; rota sola.
@@ -104,6 +107,21 @@ export default function HomeScreen() {
   // Espacio libre del dispositivo, leído una vez al arrancar y refrescado
   // al volver a la pantalla (por si el usuario borró fotos en el torneo).
   const [espacio, setEspacio] = useState<EspacioLibre | null>(null);
+
+  // Latido suave del corazón de la polaroid: escala 1 -> 1.12 -> 1 en bucle
+  // mientras dura el escaneo. Animated básico, compatible con Expo Go.
+  const latidoCorazon = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (status === '¡Listo!') return;
+    const bucle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(latidoCorazon, { toValue: 1.12, duration: 700, useNativeDriver: true }),
+        Animated.timing(latidoCorazon, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    bucle.start();
+    return () => bucle.stop();
+  }, [status, latidoCorazon]);
 
   // Mientras el escaneo está en marcha, rota la frase cálida cada 2,2 s.
   useEffect(() => {
@@ -169,7 +187,11 @@ export default function HomeScreen() {
       await detectarRafagas(resultado.assets, {
         onProgreso: (indice, total, primeraFotoUri) => {
           setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
-          setPreviewEscaneo(primeraFotoUri || null);
+          if (primeraFotoUri) {
+            setPilaEscaneo((pila) =>
+              [primeraFotoUri, ...pila.filter((u) => u !== primeraFotoUri)].slice(0, 3)
+            );
+          }
         },
         onGrupo: async (grupo) => {
           const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
@@ -189,7 +211,7 @@ export default function HomeScreen() {
       });
 
       setGrupos(gruposConDistancias);
-      setPreviewEscaneo(null);
+      setPilaEscaneo([]);
       setStatus('¡Listo!');
     })();
   }, []);
@@ -287,9 +309,29 @@ export default function HomeScreen() {
             contentFit="contain"
           />
 
-          {previewEscaneo && (
-            <View style={styles.polaroidMarco}>
-              <Image source={{ uri: previewEscaneo }} style={styles.polaroidFoto} />
+          {pilaEscaneo.length > 0 && (
+            <View style={styles.pilaContenedor}>
+              {pilaEscaneo[2] && (
+                <View style={[styles.polaroidMarco, styles.polaroidDetras2]}>
+                  <Image source={{ uri: pilaEscaneo[2] }} style={styles.polaroidFoto} />
+                </View>
+              )}
+              {pilaEscaneo[1] && (
+                <View style={[styles.polaroidMarco, styles.polaroidDetras1]}>
+                  <Image source={{ uri: pilaEscaneo[1] }} style={styles.polaroidFoto} />
+                </View>
+              )}
+              <View style={styles.polaroidMarco}>
+                <Image source={{ uri: pilaEscaneo[0] }} style={styles.polaroidFoto} />
+                <Animated.View
+                  style={[
+                    styles.corazonSello,
+                    { transform: [{ scale: latidoCorazon }, { rotate: '10deg' }] },
+                  ]}
+                >
+                  <Text style={styles.corazonSelloTexto}>♥</Text>
+                </Animated.View>
+              </View>
             </View>
           )}
 
@@ -461,25 +503,66 @@ const styles = StyleSheet.create({
     height: 150,
     marginBottom: 10,
   },
+  pilaContenedor: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
   polaroidMarco: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 22,
-    borderRadius: 8,
-    marginTop: 4,
-    transform: [{ rotate: '-3deg' }],
+    borderRadius: 16,
+    transform: [{ rotate: '-2deg' }],
     shadowColor: '#3B2A28',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  polaroidDetras1: {
+    position: 'absolute',
+    opacity: 0.7,
+    transform: [{ rotate: '-9deg' }, { translateX: -14 }, { translateY: 4 }],
+    shadowOpacity: 0.1,
+    elevation: 2,
+  },
+  polaroidDetras2: {
+    position: 'absolute',
+    opacity: 0.45,
+    transform: [{ rotate: '8deg' }, { translateX: 16 }, { translateY: 10 }],
+    shadowOpacity: 0.08,
+    elevation: 1,
   },
   polaroidFoto: {
     width: 230,
     height: 230,
-    borderRadius: 4,
+    borderRadius: 12,
     backgroundColor: COLORES.borde,
+  },
+  corazonSello: {
+    position: 'absolute',
+    top: -14,
+    right: -14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORES.acento,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    shadowColor: '#D85A30',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  corazonSelloTexto: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    lineHeight: 24,
   },
   fraseEscaneo: {
     textAlign: 'center',
@@ -491,14 +574,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   barraProgreso: {
-    width: 160,
-    height: 5,
+    width: 150,
+    height: 10,
     borderRadius: 999,
     backgroundColor: COLORES.borde,
     overflow: 'hidden',
   },
   barraProgresoRelleno: {
-    height: 5,
+    height: 10,
     borderRadius: 999,
     backgroundColor: COLORES.acento,
   },
