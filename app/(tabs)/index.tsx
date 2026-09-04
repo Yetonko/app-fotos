@@ -303,12 +303,6 @@ export default function HomeScreen() {
 
       {status !== '¡Listo!' && (
         <View style={styles.escaneoContenedor}>
-          <Image
-            source={require('@/assets/images/escaneo-ilustracion.png')}
-            style={styles.escaneoIlustracion}
-            contentFit="contain"
-          />
-
           {pilaEscaneo.length > 0 && (
             <View style={styles.pilaContenedor}>
               {pilaEscaneo[2] && (
