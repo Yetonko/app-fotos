@@ -24,15 +24,15 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="seleccion"
-            options={{ animation: 'fade' }}
+            options={{ headerShown: false, animation: 'fade' }}
           />
           <Stack.Screen
             name="periodo"
-            options={{ animation: 'fade' }}
+            options={{ headerShown: false, animation: 'fade' }}
           />
           <Stack.Screen
             name="album"
-            options={{ animation: 'fade' }}
+            options={{ headerShown: false, animation: 'fade' }}
           />
         </Stack>
         <StatusBar style="auto" />
