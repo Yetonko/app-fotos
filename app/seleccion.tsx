@@ -656,11 +656,15 @@ export default function SeleccionScreen() {
                     <Text style={styles.corazonFlotante}>❤️</Text>
                   </View>
                 )}
+                <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
+                  <Text style={styles.textoCorazon}>♥</Text>
+                </BouncyPressable>
               </View>
             </Pressable>
-            <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
-              <Text style={styles.textoCorazon}>♥</Text>
-            </BouncyPressable>
+          </View>
+
+          <View style={styles.vsPill}>
+            <Text style={styles.vsTexto}>vs</Text>
           </View>
 
           <View style={styles.opcion}>
@@ -672,11 +676,11 @@ export default function SeleccionScreen() {
                     <Text style={styles.corazonFlotante}>❤️</Text>
                   </View>
                 )}
+                <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
+                  <Text style={styles.textoCorazon}>♥</Text>
+                </BouncyPressable>
               </View>
             </Pressable>
-            <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
-              <Text style={styles.textoCorazon}>♥</Text>
-            </BouncyPressable>
           </View>
         </View>
       </ScrollView>
@@ -810,16 +814,29 @@ const styles = StyleSheet.create({
   duelo: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
+    alignItems: 'center',
+    gap: 6,
   },
   fotoDueloContenedor: {
     position: 'relative',
-    marginBottom: 14,
+    marginBottom: 30,
   },
   fotoDuelo: {
-    width: 160,
-    height: 160,
-    borderRadius: 16,
+    width: 158,
+    height: 210,
+    borderRadius: 18,
+  },
+  vsPill: {
+    backgroundColor: COLORES.acentoSuave,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 30,
+  },
+  vsTexto: {
+    color: '#993C1D',
+    fontSize: 13,
+    fontWeight: '700',
   },
   corazonFlotanteContenedor: {
     position: 'absolute',
@@ -834,6 +851,10 @@ const styles = StyleSheet.create({
     fontSize: 64,
   },
   botonCorazon: {
+    position: 'absolute',
+    bottom: -26,
+    left: '50%',
+    marginLeft: -26,
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -842,6 +863,11 @@ const styles = StyleSheet.create({
     borderColor: COLORES.acento,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#3B2A28',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 4,
   },
   textoCorazon: {
     fontSize: 24,
