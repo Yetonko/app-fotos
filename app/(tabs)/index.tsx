@@ -52,6 +52,15 @@ const TEXTO_RECUPERACION =
 
 type CandidataConUri = { id: string; uri: string; nitidez?: number };
 
+// Frases cálidas que rotan durante el escaneo, en vez de un contador
+// técnico. Transmiten cuidado en lugar de tarea pendiente.
+const FRASES_ESCANEO = [
+  'Mirando tus fotos con cariño…',
+  'Agrupando lo que va junto…',
+  'Buscando tus mejores momentos…',
+  'Casi está…',
+];
+
 // Fecha legible con día de la semana para el título del momento, ej.
 // "Sáb 30 ago". Se define aquí para no tocar etiquetas.ts, que usa un
 // formato distinto (año + mes) pensado para búsqueda futura.
@@ -82,6 +91,10 @@ export default function HomeScreen() {
   // para mostrarla en la pantalla de carga y que el usuario vea que algo
   // está pasando de verdad, no solo un texto fijo.
   const [previewEscaneo, setPreviewEscaneo] = useState<string | null>(null);
+  // Progreso real del escaneo (0..1) para la barra, sin mostrar números.
+  const [progresoEscaneo, setProgresoEscaneo] = useState(0);
+  // Índice de la frase cálida que se muestra ahora mismo; rota sola.
+  const [fraseEscaneo, setFraseEscaneo] = useState(0);
   // Se incrementa cada vez que la pantalla vuelve a tener el foco, para forzar
   // un re-render y reflejar las ganadoras marcadas en gruposElegidos.ts.
   const [tick, setTick] = useState(0);
@@ -91,6 +104,15 @@ export default function HomeScreen() {
   // Espacio libre del dispositivo, leído una vez al arrancar y refrescado
   // al volver a la pantalla (por si el usuario borró fotos en el torneo).
   const [espacio, setEspacio] = useState<EspacioLibre | null>(null);
+
+  // Mientras el escaneo está en marcha, rota la frase cálida cada 2,2 s.
+  useEffect(() => {
+    if (status === '¡Listo!') return;
+    const id = setInterval(() => {
+      setFraseEscaneo((f) => (f + 1) % FRASES_ESCANEO.length);
+    }, 2200);
+    return () => clearInterval(id);
+  }, [status]);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,7 +168,7 @@ export default function HomeScreen() {
 
       await detectarRafagas(resultado.assets, {
         onProgreso: (indice, total, primeraFotoUri) => {
-          setStatus(`Revisando momento ${indice + 1} de ${total}...`);
+          setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
           setPreviewEscaneo(primeraFotoUri || null);
         },
         onGrupo: async (grupo) => {
@@ -264,10 +286,23 @@ export default function HomeScreen() {
             style={styles.escaneoIlustracion}
             contentFit="contain"
           />
-          <Text style={styles.status}>{status}</Text>
+
           {previewEscaneo && (
-            <Image source={{ uri: previewEscaneo }} style={styles.escaneoPreview} />
+            <View style={styles.polaroidMarco}>
+              <Image source={{ uri: previewEscaneo }} style={styles.polaroidFoto} />
+            </View>
           )}
+
+          <Text style={styles.fraseEscaneo}>{FRASES_ESCANEO[fraseEscaneo]}</Text>
+
+          <View style={styles.barraProgreso}>
+            <View
+              style={[
+                styles.barraProgresoRelleno,
+                { width: `${Math.round(progresoEscaneo * 100)}%` },
+              ]}
+            />
+          </View>
         </View>
       )}
 
@@ -426,12 +461,45 @@ const styles = StyleSheet.create({
     height: 230,
     marginBottom: 4,
   },
-  escaneoPreview: {
-    width: 220,
-    height: 220,
-    borderRadius: 20,
-    backgroundColor: COLORES.superficie,
-    marginTop: 12,
+  polaroidMarco: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 22,
+    borderRadius: 8,
+    marginTop: 18,
+    transform: [{ rotate: '-3deg' }],
+    shadowColor: '#3B2A28',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  polaroidFoto: {
+    width: 200,
+    height: 200,
+    borderRadius: 4,
+    backgroundColor: COLORES.borde,
+  },
+  fraseEscaneo: {
+    textAlign: 'center',
+    color: COLORES.texto,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 28,
+    marginBottom: 18,
+  },
+  barraProgreso: {
+    width: 160,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: COLORES.borde,
+    overflow: 'hidden',
+  },
+  barraProgresoRelleno: {
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: COLORES.acento,
   },
   subtitulo: {
     textAlign: 'center',
