@@ -24,16 +24,25 @@ const COLORES = {
 // hace falta ninguna librería nueva para detectarlo.
 const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
 
-// Los dos pasos del onboarding: primero el beneficio (qué gana el usuario,
-// tanto elegir la mejor foto como recuperar espacio), después la promesa de
-// privacidad (dicha una sola vez, clara y directa, justo antes de pedir el
-// permiso de acceso a las fotos).
+// Los pasos del onboarding: primero el beneficio (qué gana el usuario, tanto
+// elegir la mejor foto como recuperar espacio), después la promesa de calma
+// (una a una, sin borrar nada sin permiso — desactiva la resistencia al
+// cambio antes de que aparezca), y por último la promesa de privacidad
+// (dicha una sola vez, clara y directa, justo antes de pedir el permiso de
+// acceso a las fotos).
 const PASOS = [
   {
     emoji: '✨',
     titulo: 'Elige la foto\nque te representa',
     texto:
       'Encuentra el momento, compara tus fotos parecidas y quédate con la que de verdad va contigo. Ah, y de paso, haces sitio para el próximo momento.',
+    boton: 'Siguiente',
+  },
+  {
+    emoji: '🌿',
+    titulo: 'Una foto cada vez',
+    texto:
+      'Vamos momento a momento, sin prisa. No borramos nada que tú no decidas: aquí tú tienes el control.',
     boton: 'Siguiente',
   },
   {
