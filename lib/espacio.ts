@@ -42,3 +42,21 @@ export async function obtenerEspacioLibre(): Promise<EspacioLibre | null> {
     return null;
   }
 }
+
+// Cache en memoria del último valor leído, para poder pintarlo sin esperar
+// a la API nativa en cada render. Igual patrón que revisados.ts / progreso.ts.
+let cache: EspacioLibre | null = null;
+
+// Lee el espacio y lo guarda en cache. Se llama al arrancar la Home.
+// Devuelve el valor (o null si la lectura falla) para usarlo directamente.
+export async function inicializarEspacio(): Promise<EspacioLibre | null> {
+  cache = await obtenerEspacioLibre();
+  return cache;
+}
+
+// Vuelve a leer el espacio (por ejemplo al volver del torneo, donde el
+// usuario puede haber borrado fotos) y actualiza el cache.
+export async function obtenerEspacioCache(): Promise<EspacioLibre | null> {
+  cache = await obtenerEspacioLibre();
+  return cache;
+}

@@ -9,6 +9,8 @@ import { GrupoFotos } from '@/lib/agrupar';
 import { detectarRafagas } from '@/lib/escaneo';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
+import { inicializarProgreso, obtenerProgresoHoy } from '@/lib/progreso';
+import { inicializarEspacio, obtenerEspacioCache, type EspacioLibre } from '@/lib/espacio';
 import {
   inicializarEtiquetas,
   obtenerNombreActividad,
@@ -50,6 +52,19 @@ const TEXTO_RECUPERACION =
 
 type CandidataConUri = { id: string; uri: string; nitidez?: number };
 
+// Fecha legible con día de la semana para el título del momento, ej.
+// "Sáb 30 ago". Se define aquí para no tocar etiquetas.ts, que usa un
+// formato distinto (año + mes) pensado para búsqueda futura.
+const DIAS_ABREV = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const MESES_MINUS = [
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
+function fechaConDia(creationTime: number): string {
+  const f = new Date(creationTime);
+  return `${DIAS_ABREV[f.getDay()]} ${f.getDate()} ${MESES_MINUS[f.getMonth()]}`;
+}
+
 type GrupoConDistancias = GrupoFotos & {
   distancias: number[];
   candidatas: CandidataConUri[];
@@ -73,10 +88,15 @@ export default function HomeScreen() {
   // Id del grupo cuyo modal de etiqueta esta abierto ahora mismo, o null
   // si no hay ninguno abierto.
   const [grupoEditando, setGrupoEditando] = useState<string | null>(null);
+  // Espacio libre del dispositivo, leído una vez al arrancar y refrescado
+  // al volver a la pantalla (por si el usuario borró fotos en el torneo).
+  const [espacio, setEspacio] = useState<EspacioLibre | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       setTick((t) => t + 1);
+      // Al volver del torneo el espacio libre puede haber cambiado.
+      obtenerEspacioCache().then(setEspacio);
     }, [])
   );
 
@@ -96,6 +116,9 @@ export default function HomeScreen() {
 
       await inicializarRevisados();
       await inicializarEtiquetas();
+      await inicializarProgreso();
+      const esp = await inicializarEspacio();
+      setEspacio(esp);
 
       const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
 
@@ -215,7 +238,24 @@ export default function HomeScreen() {
       <Text style={styles.titulo}>Fondly</Text>
       <Text style={styles.insigniaPrivacidad}>🔒 100% en tu {DISPOSITIVO}</Text>
 
-
+      {status === '¡Listo!' && (
+        <View style={styles.cabeceraGanancia}>
+          {espacio && (
+            <Text
+              style={[styles.espacioTexto, espacio.critico && styles.espacioCritico]}
+            >
+              {espacio.critico ? 'Solo te quedan ' : 'Te quedan '}
+              {espacio.texto} libres
+            </Text>
+          )}
+          {obtenerProgresoHoy().elegidas > 0 && (
+            <Text style={styles.gananciaTexto}>
+              Llevas {obtenerProgresoHoy().elegidas}
+              {obtenerProgresoHoy().elegidas === 1 ? ' elegida' : ' elegidas'} hoy ✨
+            </Text>
+          )}
+        </View>
+      )}
 
       {status !== '¡Listo!' && (
         <View style={styles.escaneoContenedor}>
@@ -229,11 +269,6 @@ export default function HomeScreen() {
             <Image source={{ uri: previewEscaneo }} style={styles.escaneoPreview} />
           )}
         </View>
-      )}
-      {status === '¡Listo!' && totalFotos !== null && (
-        <Text style={styles.subtitulo}>
-          Hemos encontrado {grupos.length} momentos entre tus {totalFotos} fotos más recientes. Elige tu favorita de cada uno.
-        </Text>
       )}
 
       {status === '¡Listo!' && (
@@ -266,15 +301,9 @@ export default function HomeScreen() {
 
               <View style={styles.tarjetaCuerpo}>
                 <Text style={styles.tarjetaTitulo}>
-                  Momento {index + 1} · {item.fotos.length} fotos casi iguales
+                  {fechaConDia(item.fotos[0].creationTime)} · {item.fotos.length} fotos
                   {revisado ? '  ·  Revisado ✓' : ''}
                 </Text>
-
-                <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>
-                  <Text style={styles.tarjetaEtiqueta}>
-                    {formatearEtiqueta(item.grupoId, item.fotos[0].creationTime)} ✏️
-                  </Text>
-                </Pressable>
 
                 {item.candidatas.length > 0 && (
                   <BouncyPressable
@@ -291,15 +320,6 @@ export default function HomeScreen() {
                   </BouncyPressable>
                 )}
 
-                {!ganadora && item.candidatas.length > 0 && (
-                  <Pressable
-                    style={styles.botonDescartarGrupo}
-                    onPress={() => descartarGrupoCompleto(item)}
-                    hitSlop={6}
-                  >
-                    <Text style={styles.textoDescartarGrupo}>🗑 No quiero ninguna de estas</Text>
-                  </Pressable>
-                )}
               </View>
             </View>
           );
@@ -344,6 +364,25 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  cabeceraGanancia: {
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 10,
+    gap: 2,
+  },
+  espacioTexto: {
+    fontSize: 14,
+    color: COLORES.textoSecundario,
+    fontWeight: '600',
+  },
+  espacioCritico: {
+    color: COLORES.acento,
+  },
+  gananciaTexto: {
+    fontSize: 15,
+    color: COLORES.acentoOscuro,
+    fontWeight: '700',
   },
   insigniaPrivacidad: {
     alignSelf: 'center',
