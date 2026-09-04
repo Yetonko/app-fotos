@@ -488,8 +488,8 @@ const styles = StyleSheet.create({
   escaneoContenedor: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
+    justifyContent: 'flex-start',
+    marginTop: 40,
     marginBottom: 16,
   },
   escaneoIlustracion: {
