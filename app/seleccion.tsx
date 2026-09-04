@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   },
   fotoDueloContenedor: {
     position: 'relative',
-    marginBottom: 30,
+    marginBottom: 22,
   },
   fotoDuelo: {
     width: 158,
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
   },
   botonCorazon: {
     position: 'absolute',
-    bottom: -26,
+    bottom: -13,
     left: '50%',
     marginLeft: -26,
     width: 52,
