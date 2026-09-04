@@ -16,6 +16,8 @@ import {
 import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { marcarRevisadoSiProcede } from '@/lib/revisados';
 import { registrarMomento } from '@/lib/momentos';
+import { guardarEnAlbumFavoritas } from '@/lib/album';
+import { sumarEleccion } from '@/lib/progreso';
 import { inicializarCoachmarks, coachmarkVisto, marcarCoachmarkVisto } from '@/lib/coachmarks';
 import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formatearEtiqueta } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
@@ -99,6 +101,9 @@ export default function SeleccionScreen() {
   // ids de las fotos "descartadas" que el usuario decide quedarse además de
   // la ganadora, antes de borrar el resto de la ráfaga.
   const [extrasSeleccionadas, setExtrasSeleccionadas] = useState<string[]>([]);
+  // true cuando la ganadora ya se ha copiado al álbum "Fondly · Favoritas",
+  // para mostrar la confirmación discreta bajo la foto.
+  const [guardadaEnAlbum, setGuardadaEnAlbum] = useState(false);
   // Tamaño en bytes que se liberaría borrando lo que no se ha marcado para
   // conservar. null mientras se está calculando (o todavía no hay ganadora).
   const [tamanoALiberar, setTamanoALiberar] = useState<number | null>(null);
@@ -165,6 +170,7 @@ export default function SeleccionScreen() {
       if (grupo?.creationTime) {
         registrarMomento(grupoId, estado.ganadora, grupo.creationTime);
       }
+      guardarEnAlbumFavoritas(estado.ganadora.id).then(setGuardadaEnAlbum);
       Alert.alert('¡Ya tienes tu foto! ¿La publicamos?', undefined, [
         { text: 'Ahora no', style: 'cancel' },
         { text: 'Publicar', onPress: compartir },
@@ -302,6 +308,7 @@ export default function SeleccionScreen() {
                 return;
               }
               setExtrasSeleccionadas([]);
+              await sumarEleccion(tamanoLiberado);
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
                 '¡Listo!',
@@ -423,6 +430,10 @@ export default function SeleccionScreen() {
             </View>
           </Pressable>
 
+          {guardadaEnAlbum && (
+            <Text style={styles.avisoGuardada}>✓ Guardada en tu álbum Fondly</Text>
+          )}
+
           {fotoMejorada && (
             <View style={styles.previewContenedor}>
               <Text style={styles.previewEtiqueta}>Versión mejorada</Text>
@@ -479,12 +490,18 @@ export default function SeleccionScreen() {
                   : 'No vas a liberar espacio (te quedas con todas)'}
               </Text>
 
-              {resto.length >= 2 && (
+              {resto.length >= 1 && (
                 <>
-                  <Text style={styles.previewEtiqueta}>¿Alguna más de este momento?</Text>
-                  <Text style={styles.extrasSubtitulo}>
-                    Elige las que quieras conservar además de la elegida.
+                  <Text style={styles.previewEtiqueta}>
+                    {resto.length === 1
+                      ? 'Esta es la que se borrará'
+                      : '¿Alguna más de este momento?'}
                   </Text>
+                  {resto.length >= 2 && (
+                    <Text style={styles.extrasSubtitulo}>
+                      Elige las que quieras conservar además de la elegida.
+                    </Text>
+                  )}
                   <Text
                     style={[
                       styles.pistaZoomExtras,
@@ -559,6 +576,10 @@ export default function SeleccionScreen() {
                   {borrando ? 'Eliminando fotos...' : `Borrar las demás (${resto.length})`}
                 </Text>
               </BouncyPressable>
+
+              <Text style={styles.textoSeguridad}>
+                Podrás recuperarlas 30 días desde Fotos
+              </Text>
             </View>
           )}
 
@@ -956,6 +977,19 @@ const styles = StyleSheet.create({
     color: COLORES.peligro,
     fontWeight: '600',
     fontSize: 15,
+  },
+  avisoGuardada: {
+    color: COLORES.acento,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  textoSeguridad: {
+    color: COLORES.textoSecundario,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
 
   // --- Selector de "quédate con alguna más" ---
