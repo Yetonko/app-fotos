@@ -84,12 +84,23 @@ export function generarPeriodos(fechaMasAntigua: number, ahora: number = Date.no
 // rango sin descargar ninguna (first: 1 solo pide la primera para poder
 // leer totalCount). Se usa para avisar antes de entrar a un periodo con
 // muchas fotos, sin tener que analizarlas todas primero.
-export async function contarFotosEnPeriodo(periodo: Periodo): Promise<number> {
+export type ConteoPeriodo = {
+  total: number;
+  // Uri de la primera foto del periodo, para usarla de portada. Sale de la
+  // misma consulta que el conteo (first:1 ya la trae), así que no cuesta
+  // ninguna llamada extra. Puede ser null si el periodo no tiene fotos.
+  portadaUri: string | null;
+};
+
+export async function contarFotosEnPeriodo(periodo: Periodo): Promise<ConteoPeriodo> {
   const resultado = await MediaLibrary.getAssetsAsync({
     mediaType: 'photo',
     createdAfter: periodo.desde,
     createdBefore: periodo.hasta,
     first: 1,
   });
-  return resultado.totalCount;
+  return {
+    total: resultado.totalCount,
+    portadaUri: resultado.assets[0]?.uri ?? null,
+  };
 }

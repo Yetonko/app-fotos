@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
+import { Image } from 'expo-image';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
@@ -35,7 +36,7 @@ const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
 // (así lo decidimos: informar antes de entrar y dejar decidir al usuario).
 const AVISO_MUCHAS_FOTOS = 800;
 
-type PeriodoConConteo = Periodo & { totalFotos: number };
+type PeriodoConConteo = Periodo & { totalFotos: number; portadaUri: string | null };
 
 function formatearConteo(n: number): string {
   const numero = n.toLocaleString('es-ES');
@@ -89,10 +90,14 @@ export default function ExploreScreen() {
         // El conteo de cada periodo es barato (no descarga fotos), así que
         // se piden todos a la vez en paralelo.
         const conConteo = await Promise.all(
-          base.map(async (periodo) => ({
-            ...periodo,
-            totalFotos: await contarFotosEnPeriodo(periodo),
-          }))
+          base.map(async (periodo) => {
+            const conteo = await contarFotosEnPeriodo(periodo);
+            return {
+              ...periodo,
+              totalFotos: conteo.total,
+              portadaUri: conteo.portadaUri,
+            };
+          })
         );
 
         setPeriodos(conConteo.filter((p) => p.totalFotos > 0));
@@ -127,8 +132,8 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>Revisar fotos antiguas</Text>
-      <Text style={styles.subtitulo}>Elige un periodo para limpiarlo cuando quieras</Text>
+      <Text style={styles.titulo}>Tus recuerdos por épocas</Text>
+      <Text style={styles.subtitulo}>Revive cada época y quédate con lo mejor</Text>
 
       {cargando && (
         <View style={styles.centrado}>
@@ -163,7 +168,14 @@ export default function ExploreScreen() {
                 style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}
                 onPress={() => tocarPeriodo(item)}
               >
-                <View>
+                {item.portadaUri ? (
+                  <Image source={{ uri: item.portadaUri }} style={styles.tarjetaPortada} />
+                ) : (
+                  <View style={[styles.tarjetaPortada, styles.tarjetaPortadaVacia]}>
+                    <Text style={styles.tarjetaPortadaEmoji}>📷</Text>
+                  </View>
+                )}
+                <View style={styles.tarjetaCuerpo}>
                   <Text style={styles.tarjetaTitulo}>
                     {item.etiqueta}
                     {revisado ? '  ·  Revisado ✓' : ''}
@@ -171,7 +183,7 @@ export default function ExploreScreen() {
                   <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
                   {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
                     <Text style={styles.tarjetaAviso}>
-                      Son bastantes fotos, revisarlas puede tardar un poco más de lo normal
+                      Son bastantes fotos, puede tardar un poco más
                     </Text>
                   )}
                 </View>
@@ -231,12 +243,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tarjeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORES.superficie,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORES.borde,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
+    shadowColor: '#3B2A28',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tarjetaPortada: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: COLORES.borde,
+    marginRight: 14,
+  },
+  tarjetaPortadaVacia: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tarjetaPortadaEmoji: {
+    fontSize: 26,
+  },
+  tarjetaCuerpo: {
+    flex: 1,
   },
   tarjetaRevisada: {
     opacity: 0.55,
