@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
 import { inicializarMomentos, obtenerMomentos } from '@/lib/momentos';
-import { inicializarEtiquetas, obtenerNombreActividad, extraerPalabrasClave } from '@/lib/etiquetas';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 
 // Misma paleta que el resto de pantallas.
@@ -20,6 +19,22 @@ const COLORES = {
   texto: '#2B2420',
   textoSecundario: '#8C8171',
 };
+
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+// Clave 'YYYY-MM' (para agrupar y ordenar) y nombre visible 'Agosto 2026'
+// a partir de un creationTime en milisegundos.
+function claveMes(creationTime: number): string {
+  const f = new Date(creationTime);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`;
+}
+function nombreMes(creationTime: number): string {
+  const f = new Date(creationTime);
+  return `${MESES[f.getMonth()]} ${f.getFullYear()}`;
+}
 
 type Album = {
   clave: string;
@@ -35,44 +50,34 @@ export default function AlbumesScreen() {
   const [cargando, setCargando] = useState(true);
   const [albumes, setAlbumes] = useState<Album[]>([]);
 
-  // Solo cuentan los momentos que tienen un nombre de etiqueta puesto (los
-  // "Sin etiquetar" no aparecen en Álbumes, a propósito). Cada palabra
-  // significativa del nombre se convierte en su propio álbum (ignorando
-  // mayúsculas): "Excursión Bret" contribuye tanto al álbum "Excursión"
-  // como al álbum "Bret", para que no haga falta escribir siempre el mismo
-  // texto exacto para que dos momentos se agrupen juntos.
+  // Agrupa automáticamente todas las fotos elegidas por mes/año, usando el
+  // creationTime que se guarda al elegir. No depende de que la usuaria haya
+  // etiquetado nada: cada mes con fotos elegidas es un álbum.
   const cargar = useCallback(async () => {
     await inicializarMomentos();
-    await inicializarEtiquetas();
     const momentos = obtenerMomentos();
 
     const porClave = new Map<string, Album>();
 
     for (const momento of momentos) {
-      const nombre = obtenerNombreActividad(momento.grupoId)?.trim();
-      if (!nombre) continue;
+      const clave = claveMes(momento.creationTime);
 
-      for (const palabra of extraerPalabrasClave(nombre)) {
-        const clave = palabra.toLowerCase();
+      const existente = porClave.get(clave);
+      if (!existente) {
+        porClave.set(clave, {
+          clave,
+          nombreMostrar: nombreMes(momento.creationTime),
+          portadaUri: momento.ganadoraUri,
+          numFotos: 1,
+          masReciente: momento.creationTime,
+        });
+        continue;
+      }
 
-        const existente = porClave.get(clave);
-        if (!existente) {
-          porClave.set(clave, {
-            clave,
-            nombreMostrar: palabra,
-            portadaUri: momento.ganadoraUri,
-            numFotos: 1,
-            masReciente: momento.creationTime,
-          });
-          continue;
-        }
-
-        existente.numFotos += 1;
-        if (momento.creationTime > existente.masReciente) {
-          existente.masReciente = momento.creationTime;
-          existente.portadaUri = momento.ganadoraUri;
-          existente.nombreMostrar = palabra;
-        }
+      existente.numFotos += 1;
+      if (momento.creationTime > existente.masReciente) {
+        existente.masReciente = momento.creationTime;
+        existente.portadaUri = momento.ganadoraUri;
       }
     }
 
@@ -89,14 +94,14 @@ export default function AlbumesScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>Álbumes</Text>
+      <Text style={styles.titulo}>Tus momentos</Text>
 
       {!cargando && albumes.length === 0 && (
         <View style={styles.vacioContenedor}>
           <Text style={styles.vacioEmoji}>📷</Text>
           <Text style={styles.vacioTexto}>
-            Todavía no tienes álbumes. Ponle un nombre a un momento (✏️) desde Home o Periodos y
-            aparecerá aquí.
+            Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en
+            Home.
           </Text>
         </View>
       )}
@@ -120,7 +125,7 @@ export default function AlbumesScreen() {
               <View style={styles.tarjetaCuerpo}>
                 <Text style={styles.tarjetaTitulo}>{item.nombreMostrar}</Text>
                 <Text style={styles.tarjetaSubtitulo}>
-                  {item.numFotos} {item.numFotos === 1 ? 'foto' : 'fotos'}
+                  {item.numFotos} {item.numFotos === 1 ? 'foto elegida' : 'fotos elegidas'}
                 </Text>
               </View>
             </BouncyPressable>

@@ -4,7 +4,6 @@ import { FlatList, StyleSheet, View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 
 import { inicializarMomentos, obtenerMomentos } from '@/lib/momentos';
-import { inicializarEtiquetas, obtenerNombreActividad, extraerPalabrasClave } from '@/lib/etiquetas';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
 
 const COLORES = {
@@ -17,6 +16,12 @@ const COLORES = {
   texto: '#2B2420',
   textoSecundario: '#8C8171',
 };
+
+// Clave 'YYYY-MM' de un creationTime, para casar con la clave del álbum.
+function claveMes(creationTime: number): string {
+  const f = new Date(creationTime);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`;
+}
 
 type FotoAlbum = { id: string; uri: string; creationTime: number };
 
@@ -34,15 +39,10 @@ export default function AlbumScreen() {
   const cargar = useCallback(async () => {
     if (!clave) return;
     await inicializarMomentos();
-    await inicializarEtiquetas();
     const momentos = obtenerMomentos();
 
     const coincidencias = momentos
-      .filter((m) => {
-        const nombre = obtenerNombreActividad(m.grupoId)?.trim();
-        if (!nombre) return false;
-        return extraerPalabrasClave(nombre).some((palabra) => palabra.toLowerCase() === clave);
-      })
+      .filter((m) => claveMes(m.creationTime) === clave)
       .sort((a, b) => a.creationTime - b.creationTime)
       .map((m) => ({ id: m.ganadoraId, uri: m.ganadoraUri, creationTime: m.creationTime }));
 
@@ -59,7 +59,7 @@ export default function AlbumScreen() {
     <View style={styles.container}>
       <Text style={styles.titulo}>{nombre ?? 'Álbum'}</Text>
       <Text style={styles.subtitulo}>
-        {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
+        {fotos.length} {fotos.length === 1 ? 'foto elegida' : 'fotos elegidas'}
       </Text>
 
       <FlatList
