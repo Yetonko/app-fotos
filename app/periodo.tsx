@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { FlatList, StyleSheet, View, Text, Pressable, Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'expo-image';
 
@@ -40,6 +41,7 @@ const TEXTO_RECUPERACION =
 
 export default function PeriodoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { desde, hasta, etiqueta, id } = useLocalSearchParams<{
     desde?: string;
     hasta?: string;
@@ -177,7 +179,10 @@ export default function PeriodoScreen() {
   const grupoEditandoData = grupos.find((g) => g.grupoId === grupoEditando);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+      <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
+        <Text style={styles.botonVolverTexto}>‹ Volver</Text>
+      </Pressable>
       <Text style={styles.titulo}>{etiqueta ?? 'Periodo'}</Text>
 
       {status !== '¡Listo!' && (
@@ -268,10 +273,22 @@ export default function PeriodoScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    // paddingTop lo aporta insets.top en el render
     flex: 1,
     backgroundColor: COLORES.fondo,
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  botonVolver: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingRight: 12,
+    marginBottom: 4,
+  },
+  botonVolverTexto: {
+    fontSize: 17,
+    color: COLORES.acento,
+    fontWeight: '600',
   },
   titulo: {
     fontSize: 22,

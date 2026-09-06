@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlatList, StyleSheet, View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 
@@ -30,6 +31,8 @@ const NUM_COLUMNAS = 3;
 
 export default function AlbumScreen() {
   const { clave, nombre } = useLocalSearchParams<{ clave?: string; nombre?: string }>();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [fotos, setFotos] = useState<FotoAlbum[]>([]);
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
 
@@ -56,7 +59,10 @@ export default function AlbumScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+      <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
+        <Text style={styles.botonVolverTexto}>‹ Volver</Text>
+      </Pressable>
       <Text style={styles.titulo}>{nombre ?? 'Álbum'}</Text>
       <Text style={styles.subtitulo}>
         {fotos.length} {fotos.length === 1 ? 'foto elegida' : 'fotos elegidas'}
@@ -85,10 +91,22 @@ export default function AlbumScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    // el paddingTop real lo ajusta insets en el componente
     flex: 1,
     backgroundColor: COLORES.fondo,
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  botonVolver: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingRight: 12,
+    marginBottom: 4,
+  },
+  botonVolverTexto: {
+    fontSize: 17,
+    color: COLORES.acento,
+    fontWeight: '600',
   },
   titulo: {
     fontSize: 22,
