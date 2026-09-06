@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { FlatList, StyleSheet, View, Text, Pressable, Alert, Platform } from 'react-native';
+import { Animated, FlatList, StyleSheet, View, Text, Pressable, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'expo-image';
@@ -39,9 +39,17 @@ const TEXTO_RECUPERACION =
     ? 'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.'
     : 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.';
 
+const FRASES_ESCANEO = [
+  'Mirando tus fotos con cariño…',
+  'Agrupando lo que va junto…',
+  'Reviviendo esta época…',
+  'Casi está…',
+];
+
 export default function PeriodoScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
   const { desde, hasta, etiqueta, id } = useLocalSearchParams<{
     desde?: string;
     hasta?: string;
@@ -50,7 +58,27 @@ export default function PeriodoScreen() {
   }>();
 
   const [status, setStatus] = useState('Buscando fotos de este periodo...');
-  const [previewEscaneo, setPreviewEscaneo] = useState<string | null>(null);
+  const latidoCorazon = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (status === '¡Listo!') return;
+    const bucle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(latidoCorazon, { toValue: 1.12, duration: 700, useNativeDriver: true }),
+        Animated.timing(latidoCorazon, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    bucle.start();
+    return () => bucle.stop();
+  }, [status, latidoCorazon]);
+  useEffect(() => {
+    if (status === '¡Listo!') return;
+    const iv = setInterval(() => setFraseEscaneo((f) => (f + 1) % FRASES_ESCANEO.length), 2200);
+    return () => clearInterval(iv);
+  }, [status]);
+  // Pila de hasta 3 uris para la escena de escaneo (igual que en la Home).
+  const [pilaEscaneo, setPilaEscaneo] = useState<string[]>([]);
+  const [progresoEscaneo, setProgresoEscaneo] = useState(0);
+  const [fraseEscaneo, setFraseEscaneo] = useState(0);
   const [grupos, setGrupos] = useState<GrupoConCandidatas[]>([]);
   // Se incrementa al volver de seleccion.tsx, para reflejar los grupos que
   // se hayan marcado como revisados mientras tanto.
@@ -94,8 +122,12 @@ export default function PeriodoScreen() {
 
       await detectarRafagas(assets.assets, {
         onProgreso: (indice, total, primeraFotoUri) => {
-          setStatus(`Revisando momento ${indice + 1} de ${total}...`);
-          setPreviewEscaneo(primeraFotoUri || null);
+          setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
+          if (primeraFotoUri) {
+            setPilaEscaneo((pila) =>
+              [primeraFotoUri, ...pila.filter((u) => u !== primeraFotoUri)].slice(0, 3)
+            );
+          }
         },
         onGrupo: (grupo) => {
           const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
@@ -110,7 +142,7 @@ export default function PeriodoScreen() {
       });
 
       setGrupos(resultado);
-      setPreviewEscaneo(null);
+      setPilaEscaneo([]);
       setStatus('¡Listo!');
     })();
   }, [desde, hasta]);
@@ -187,10 +219,37 @@ export default function PeriodoScreen() {
 
       {status !== '¡Listo!' && (
         <View style={styles.centrado}>
-          <Text style={styles.status}>{status}</Text>
-          {previewEscaneo && (
-            <Image source={{ uri: previewEscaneo }} style={styles.preview} />
+          {pilaEscaneo.length > 0 && (
+            <View style={styles.pilaContenedor}>
+              {pilaEscaneo[2] && (
+                <View style={[styles.polaroidMarco, styles.polaroidDetras2]}>
+                  <Image source={{ uri: pilaEscaneo[2] }} style={styles.polaroidFoto} />
+                </View>
+              )}
+              {pilaEscaneo[1] && (
+                <View style={[styles.polaroidMarco, styles.polaroidDetras1]}>
+                  <Image source={{ uri: pilaEscaneo[1] }} style={styles.polaroidFoto} />
+                </View>
+              )}
+              <View style={styles.polaroidMarco}>
+                <Image source={{ uri: pilaEscaneo[0] }} style={styles.polaroidFoto} />
+                <Animated.View
+                  style={[
+                    styles.corazonSello,
+                    { transform: [{ scale: latidoCorazon }, { rotate: '10deg' }] },
+                  ]}
+                >
+                  <Text style={styles.corazonSelloTexto}>♥</Text>
+                </Animated.View>
+              </View>
+            </View>
           )}
+          <Text style={styles.fraseEscaneo}>{FRASES_ESCANEO[fraseEscaneo]}</Text>
+          <View style={styles.barraProgreso}>
+            <View
+              style={[styles.barraProgresoRelleno, { width: `${Math.round(progresoEscaneo * 100)}%` }]}
+            />
+          </View>
         </View>
       )}
 
@@ -310,11 +369,87 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 10,
   },
-  preview: {
+  pilaContenedor: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  polaroidMarco: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 22,
+    borderRadius: 16,
+    transform: [{ rotate: '-2deg' }],
+    shadowColor: '#3B2A28',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  polaroidDetras1: {
+    position: 'absolute',
+    opacity: 0.7,
+    transform: [{ rotate: '-9deg' }, { translateX: -14 }, { translateY: 4 }],
+    shadowOpacity: 0.1,
+    elevation: 2,
+  },
+  polaroidDetras2: {
+    position: 'absolute',
+    opacity: 0.45,
+    transform: [{ rotate: '8deg' }, { translateX: 16 }, { translateY: 10 }],
+    shadowOpacity: 0.08,
+    elevation: 1,
+  },
+  polaroidFoto: {
     width: 200,
     height: 200,
-    borderRadius: 18,
-    backgroundColor: COLORES.superficie,
+    borderRadius: 12,
+    backgroundColor: COLORES.borde,
+  },
+  corazonSello: {
+    position: 'absolute',
+    top: -14,
+    right: -14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORES.acento,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    shadowColor: '#D85A30',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  corazonSelloTexto: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    lineHeight: 24,
+  },
+  fraseEscaneo: {
+    textAlign: 'center',
+    color: COLORES.acentoOscuro,
+    fontSize: 17,
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  barraProgreso: {
+    width: 150,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: COLORES.borde,
+    overflow: 'hidden',
+  },
+  barraProgresoRelleno: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: COLORES.acento,
   },
   emoji: {
     fontSize: 40,
