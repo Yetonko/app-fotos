@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 
+import { registrarSeleccion } from '@/lib/uso';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
 import {
   iniciarTorneo,
@@ -165,6 +166,7 @@ export default function SeleccionScreen() {
   useEffect(() => {
     if (estado.ganadora && grupoId) {
       marcarGanadora(grupoId, estado.ganadora);
+      registrarSeleccion();
       const numExtras = candidatasOriginales.length - 1 + descartadasPorNitidez.length;
       marcarRevisadoSiProcede(grupoId, numExtras);
       if (grupo?.creationTime) {

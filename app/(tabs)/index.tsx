@@ -10,6 +10,7 @@ import { detectarRafagas } from '@/lib/escaneo';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 import { inicializarProgreso, obtenerProgresoHoy } from '@/lib/progreso';
+import { estadoUso } from '@/lib/uso';
 import { inicializarEspacio, obtenerEspacioCache, type EspacioLibre } from '@/lib/espacio';
 import {
   inicializarEtiquetas,
@@ -216,7 +217,38 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  const seleccionarGrupo = (grupoId: string) => {
+  const seleccionarGrupo = async (grupoId: string) => {
+    const { estado, seleccionesUsadas, diasRestantesCiclo } = await estadoUso();
+
+    if (estado === 'bloqueado') {
+      router.push({
+        pathname: '/paywall' as any,
+        params: {
+          modo: 'bloqueado',
+          selecciones: String(seleccionesUsadas),
+          diasRestantes: String(diasRestantesCiclo),
+          mbLiberados: '0',
+          grupoId,
+        },
+      });
+      return;
+    }
+
+    if (estado === 'gracia') {
+      router.push({
+        pathname: '/paywall' as any,
+        params: {
+          modo: 'gracia',
+          selecciones: String(seleccionesUsadas),
+          diasRestantes: String(diasRestantesCiclo),
+          mbLiberados: '0',
+          grupoId,
+        },
+      });
+      return;
+    }
+
+    // estado === 'libre': ir directamente al torneo
     router.push({
       pathname: '/seleccion',
       params: { grupoId },
