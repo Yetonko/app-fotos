@@ -1,5 +1,6 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Purchases from 'react-native-purchases';
 
 // ── Pantalla de paywall ────────────────────────────
 // Se recibe vía params:
@@ -7,6 +8,13 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 //   selecciones: número de selecciones usadas
 //   diasRestantes: días que faltan para resetear el ciclo
 //   mbLiberados: MB liberados este ciclo (opcional, 0 si no se tiene)
+
+// IDs exactos dados de alta en App Store Connect y en RevenueCat.
+const ID_SUSCRIPCION = 'fondly_unlimited_monthly';
+const ID_PACK = 'fondly_pack50';
+// Entitlement de RevenueCat que marca a un usuario como premium (ligado
+// solo a la suscripción; el pack no otorga entitlement, ver lib/uso.ts).
+const ENTITLEMENT_PREMIUM = 'com_mariopalomar_fondly_pro';
 
 export default function Paywall() {
   const router = useRouter();
@@ -25,20 +33,68 @@ export default function Paywall() {
   const grupoId = params.grupoId ?? '';
   const esBloqueo = modo === 'bloqueado';
 
-  // ── Compra (placeholder — se conecta mañana con expo-iap) ──
+  // ── Compras reales vía RevenueCat ──
   async function comprarSuscripcion() {
-    // TODO: llamar a expo-iap con 'fondly_unlimited_monthly'
-    console.log('[Paywall] Compra suscripción — pendiente de conectar');
+    try {
+      const productos = await Purchases.getProducts([ID_SUSCRIPCION]);
+      const producto = productos[0];
+      if (!producto) {
+        Alert.alert(
+          'No disponible',
+          'No hemos podido cargar la suscripción. Inténtalo de nuevo en unos minutos.'
+        );
+        return;
+      }
+      const { customerInfo } = await Purchases.purchaseStoreProduct(producto);
+      if (customerInfo.entitlements.active[ENTITLEMENT_PREMIUM]) {
+        cerrar();
+      }
+    } catch (error: any) {
+      // El usuario puede cancelar el diálogo de compra: no es un error real.
+      if (!error?.userCancelled) {
+        Alert.alert('No se pudo completar la compra', 'Inténtalo de nuevo más tarde.');
+      }
+    }
   }
 
   async function comprarPack() {
-    // TODO: llamar a expo-iap con 'fondly_pack50'
-    console.log('[Paywall] Compra pack — pendiente de conectar');
+    try {
+      const productos = await Purchases.getProducts([ID_PACK]);
+      const producto = productos[0];
+      if (!producto) {
+        Alert.alert(
+          'No disponible',
+          'No hemos podido cargar el pack. Inténtalo de nuevo en unos minutos.'
+        );
+        return;
+      }
+      await Purchases.purchaseStoreProduct(producto);
+      // TODO (paso 3 del Bloque B): sumar 50 selecciones en lib/uso.ts
+      // tras confirmar esta compra consumible.
+      Alert.alert('¡Listo!', 'Se han añadido 50 selecciones a tu cuenta.');
+      cerrar();
+    } catch (error: any) {
+      if (!error?.userCancelled) {
+        Alert.alert('No se pudo completar la compra', 'Inténtalo de nuevo más tarde.');
+      }
+    }
   }
 
   async function restaurar() {
-    // TODO: llamar a expo-iap restore
-    console.log('[Paywall] Restaurar compras — pendiente de conectar');
+    try {
+      const customerInfo = await Purchases.restorePurchases();
+      if (customerInfo.entitlements.active[ENTITLEMENT_PREMIUM]) {
+        Alert.alert('Compras restauradas', 'Tu suscripción está activa.');
+        cerrar();
+      } else {
+        Alert.alert(
+          'Nada que restaurar',
+          'No hemos encontrado compras previas en esta cuenta de Apple.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('No se pudo restaurar', 'Inténtalo de nuevo más tarde.');
+    }
   }
 
   function cerrar() {
