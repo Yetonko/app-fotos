@@ -1,97 +1,225 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fondly — Política de Privacidad</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: #F5EFE3;
-      color: #3B2A28;
-      line-height: 1.7;
-      padding: 2rem 1.5rem;
-      max-width: 640px;
-      margin: 0 auto;
-    }
-    h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      margin-bottom: 0.3rem;
-    }
-    .fecha {
-      color: #9A8A7C;
-      font-size: 0.9rem;
-      margin-bottom: 2rem;
-    }
-    h2 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      margin-top: 2rem;
-      margin-bottom: 0.5rem;
-      color: #D98C7A;
-    }
-    p { margin-bottom: 1rem; }
-    a { color: #D98C7A; }
-    .badge {
-      display: inline-block;
-      background: #3B2A28;
-      color: #F5EFE3;
-      font-size: 0.8rem;
-      font-weight: 600;
-      padding: 0.3rem 0.8rem;
-      border-radius: 999px;
-      margin-bottom: 1.5rem;
-    }
-    footer {
-      margin-top: 3rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid #E0D8CC;
-      font-size: 0.85rem;
-      color: #9A8A7C;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy · Política de Privacidad · Fondly</title>
+<style>
+  :root {
+    --fondo: #F5EFE3;
+    --superficie: #FFFFFF;
+    --borde: #EAE2D0;
+    --acento: #D98C7A;
+    --acento-suave: #F4DCD3;
+    --acento-oscuro: #3B2A28;
+    --texto: #2B2420;
+    --texto-secundario: #8C8171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  .contenedor {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  .idiomas {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-bottom: 28px;
+  }
+  .idiomas button {
+    background: transparent;
+    border: 1px solid var(--borde);
+    color: var(--texto-secundario);
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .idiomas button.activo {
+    background: var(--acento-oscuro);
+    border-color: var(--acento-oscuro);
+    color: #fff;
+  }
+  header { margin-bottom: 40px; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 34px;
+    line-height: 1.2;
+    margin: 0 0 8px;
+    color: var(--acento-oscuro);
+  }
+  .actualizado {
+    color: var(--texto-secundario);
+    font-size: 15px;
+    margin: 0;
+  }
+  h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+    margin: 40px 0 12px;
+    color: var(--acento-oscuro);
+  }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  a { color: var(--acento); }
+  .resumen {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--acento);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin: 28px 0 8px;
+  }
+  .resumen p { margin: 0; }
+  .marcador {
+    background: var(--acento-suave);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-weight: 600;
+  }
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--borde);
+    color: var(--texto-secundario);
+    font-size: 14px;
+  }
+</style>
 </head>
 <body>
+  <div class="contenedor">
 
-  <h1>Política de Privacidad</h1>
-  <p class="fecha">Última actualización: septiembre 2026</p>
-  <span class="badge">🔒 100% en tu iPhone</span>
+    <div class="idiomas">
+      <button data-lang="es" class="activo">Español</button>
+      <button data-lang="en">English</button>
+    </div>
 
-  <p>Fondly es una app diseñada para ayudarte a elegir y compartir tus mejores fotos. Tu privacidad es una prioridad absoluta, no un compromiso.</p>
+    <!-- ================= ESPAÑOL ================= -->
+    <div class="contenido-lang" data-lang="es">
+      <header>
+        <h1>Política de Privacidad de Fondly</h1>
+        <p class="actualizado">Última actualización: 16 de septiembre de 2026</p>
+      </header>
 
-  <h2>Qué datos recoge Fondly</h2>
-  <p>Ninguno. Fondly no recoge, almacena ni transmite datos personales de ningún tipo. No hay cuentas de usuario, no hay registro, no hay servidores.</p>
+      <div class="resumen">
+        <p><strong>En resumen:</strong> Fondly funciona por completo en tu dispositivo. Tus fotos nunca salen de él, no usamos servidores ni la nube, no hay seguimiento ni publicidad, y no recopilamos datos personales sobre ti.</p>
+      </div>
 
-  <h2>Acceso a tus fotos</h2>
-  <p>Fondly solicita permiso para acceder a tu biblioteca de fotos a través del sistema de permisos de iOS. Este acceso se usa exclusivamente para detectar fotos similares en tu dispositivo, mostrártelas durante el proceso de selección y, si tú lo decides, borrar las que no quieras conservar. Tus fotos nunca salen de tu iPhone.</p>
+      <h2>Quién es el responsable</h2>
+      <p>Fondly es una aplicación desarrollada por Mario Palomar (Barcelona, España). Para cualquier cuestión relacionada con esta política puedes escribir a <a href="mailto:fondlyapp@mpabogados.eu">fondlyapp@mpabogados.eu</a>.</p>
 
-  <h2>Procesamiento local</h2>
-  <p>Todo el procesamiento (agrupación de fotos, comparación, mejora de imagen) ocurre íntegramente en tu dispositivo. No se envía ninguna foto, miniatura ni metadato a servidores externos, servicios en la nube ni terceros.</p>
+      <h2>Qué datos recopilamos</h2>
+      <p>Ninguno de carácter personal. Fondly no recoge, almacena ni transmite información personal tuya a ningún servidor. Todo el procesamiento ocurre localmente en tu dispositivo:</p>
+      <ul>
+        <li>No creamos cuentas de usuario ni te pedimos registro.</li>
+        <li>No usamos herramientas de analítica, seguimiento ni publicidad.</li>
+        <li>No hay servidores propios ni copias en la nube: tus fotos no se suben a ningún sitio.</li>
+      </ul>
 
-  <h2>Almacenamiento local</h2>
-  <p>Fondly utiliza AsyncStorage (almacenamiento local del dispositivo) para guardar tus preferencias dentro de la app, como el estado del onboarding, las etiquetas de tus momentos y los grupos ya revisados. Esta información se almacena solo en tu iPhone y no es accesible desde fuera de la app.</p>
+      <h2>Acceso a tus fotos</h2>
+      <p>Para cumplir su función —encontrar fotos parecidas de un mismo momento y ayudarte a elegir tu favorita— Fondly necesita permiso para acceder a la biblioteca de fotos de tu dispositivo. Ese acceso se usa únicamente dentro de la app y en tu propio dispositivo. Las fotos se analizan localmente y no se envían a ningún lugar. Puedes conceder o revocar este permiso en cualquier momento desde los ajustes de tu dispositivo.</p>
 
-  <h2>Compartir fotos</h2>
-  <p>Cuando eliges compartir una foto, Fondly utiliza la funcionalidad nativa de iOS para abrir el menú de compartir del sistema. La app no controla ni interviene en lo que ocurre después de ese punto: es tu sistema operativo el que gestiona el envío a la app de destino (Instagram, WhatsApp, etc.).</p>
+      <h2>Información guardada en tu dispositivo</h2>
+      <p>Para que la app recuerde tus preferencias, Fondly guarda cierta información <strong>en el almacenamiento local de tu propio dispositivo</strong> (no en ningún servidor). Por ejemplo: las fotos que ya has revisado, las etiquetas o nombres que asignas a tus momentos, y contadores de uso y progreso. Esta información permanece en tu dispositivo, está bajo tu control y se elimina si desinstalas la aplicación.</p>
 
-  <h2>Analíticas y seguimiento</h2>
-  <p>Fondly no incluye ningún SDK de analíticas, seguimiento, publicidad ni servicios de terceros. No se rastrean acciones, no hay telemetría, no hay cookies.</p>
+      <h2>Compras dentro de la app</h2>
+      <p>Si adquieres una suscripción o un pack de usos, el pago lo procesa <strong>Apple</strong> a través del sistema de compras de la App Store. Fondly no ve ni almacena los datos de tu tarjeta ni de tu método de pago: esa información la gestiona Apple conforme a su propia política de privacidad. Nosotros solo recibimos de Apple información agregada y no identificable sobre las ventas. La gestión y cancelación de tu suscripción se realiza desde los ajustes de tu cuenta de Apple (ID de Apple) en la App Store.</p>
 
-  <h2>Datos de menores</h2>
-  <p>Fondly no recoge datos de ningún usuario, incluidos menores de edad. Al no existir recopilación de datos, no se aplica ningún tratamiento especial por edad.</p>
+      <h2>Con quién compartimos tus datos</h2>
+      <p>Con nadie. Al no recopilar datos personales, no hay información que compartir, vender ni ceder a terceros.</p>
 
-  <h2>Cambios en esta política</h2>
-  <p>Si en futuras versiones se incorporara alguna funcionalidad que implicara tratamiento de datos, esta política se actualizará antes de implementarla y se notificará a los usuarios a través de la propia app.</p>
+      <h2>Menores</h2>
+      <p>Fondly no está dirigida a menores de 14 años y no recopila conscientemente datos de menores. Como la app no recaba datos personales de ningún usuario, tampoco lo hace de menores.</p>
 
-  <h2>Contacto</h2>
-  <p>Si tienes preguntas sobre esta política de privacidad, puedes escribir a:<br>
-  <a href="mailto:mariopalomar@icloud.com">mariopalomar@icloud.com</a></p>
+      <h2>Tus derechos</h2>
+      <p>Nos tomamos en serio el Reglamento General de Protección de Datos (RGPD). Dado que Fondly no trata datos personales tuyos por nuestra parte, no conservamos ninguna información que podamos entregarte, rectificar o suprimir a petición: los datos que la app guarda están en tu dispositivo y bajo tu control (puedes borrarlos desinstalando la app o revocando permisos). Si tienes cualquier duda sobre privacidad, escríbenos a <a href="mailto:fondlyapp@mpabogados.eu">fondlyapp@mpabogados.eu</a>. También tienes derecho a presentar una reclamación ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
 
-  <footer>
-    Fondly · Mario Palomar · España
-  </footer>
+      <h2>Cambios en esta política</h2>
+      <p>Si en el futuro añadimos funciones que impliquen un tratamiento distinto de datos, actualizaremos esta política y cambiaremos la fecha de "última actualización" que figura arriba. Te recomendamos revisarla de vez en cuando.</p>
 
+      <h2>Contacto</h2>
+      <p>Para cualquier pregunta sobre esta política de privacidad, puedes contactar en <a href="mailto:fondlyapp@mpabogados.eu">fondlyapp@mpabogados.eu</a>.</p>
+
+      <footer>
+        Fondly · Aplicación para iOS · Mario Palomar, Barcelona (España)
+      </footer>
+    </div>
+
+    <!-- ================= ENGLISH ================= -->
+    <div class="contenido-lang" data-lang="en" hidden>
+      <header>
+        <h1>Fondly Privacy Policy</h1>
+        <p class="actualizado">Last updated: 16 September 2026</p>
+      </header>
+
+      <div class="resumen">
+        <p><strong>In short:</strong> Fondly runs entirely on your device. Your photos never leave it, we use no servers or cloud, there is no tracking or advertising, and we do not collect any personal data about you.</p>
+      </div>
+
+      <h2>Who is responsible</h2>
+      <p>Fondly is an app developed by Mario Palomar (Barcelona, Spain). For any question about this policy, you can write to <a href="mailto:fondlyapp@mpabogados.eu">fondlyapp@mpabogados.eu</a>.</p>
+
+      <h2>What data we collect</h2>
+      <p>None of a personal nature. Fondly does not collect, store or transmit any personal information about you to any server. All processing happens locally on your device:</p>
+      <ul>
+        <li>We do not create user accounts or ask you to register.</li>
+        <li>We use no analytics, tracking or advertising tools.</li>
+        <li>There are no servers of ours and no cloud copies: your photos are never uploaded anywhere.</li>
+      </ul>
+
+      <h2>Access to your photos</h2>
+      <p>To do its job —finding similar photos from the same moment and helping you choose your favourite— Fondly needs permission to access your device's photo library. That access is used only within the app and on your own device. Photos are analysed locally and are never sent anywhere. You can grant or revoke this permission at any time in your device settings.</p>
+
+      <h2>Information stored on your device</h2>
+      <p>So the app can remember your preferences, Fondly stores some information <strong>in your own device's local storage</strong> (not on any server). For example: which photos you have already reviewed, the labels or names you give your moments, and usage and progress counters. This information stays on your device, is under your control, and is deleted if you uninstall the app.</p>
+
+      <h2>In-app purchases</h2>
+      <p>If you buy a subscription or a pack of uses, the payment is processed by <strong>Apple</strong> through the App Store purchase system. Fondly never sees or stores your card or payment details: that information is handled by Apple under its own privacy policy. We only receive aggregated, non-identifying sales information from Apple. Managing and cancelling your subscription is done from your Apple Account (Apple ID) settings in the App Store.</p>
+
+      <h2>Who we share your data with</h2>
+      <p>No one. Since we collect no personal data, there is nothing to share, sell or transfer to third parties.</p>
+
+      <h2>Children</h2>
+      <p>Fondly is not directed to children under 14 and does not knowingly collect data from minors. As the app collects no personal data from any user, it collects none from minors either.</p>
+
+      <h2>Your rights</h2>
+      <p>We take the General Data Protection Regulation (GDPR) seriously. Since Fondly does not process any personal data on our side, we hold no information we could provide, rectify or erase on request: the data the app stores is on your device and under your control (you can delete it by uninstalling the app or revoking permissions). If you have any privacy question, write to us at <a href="mailto:fondlyapp@mpabogados.eu">fondlyapp@mpabogados.eu</a>. If you are in the EU, you also have the right to lodge a complaint with your local data protection authority (in Spain, the Agencia Española de Protección de Datos, <a href="https://www.aepd.es">www.aepd.es</a>).</p>
+
+      <h2>Changes to this policy</h2>
+      <p>If in the future we add features that involve a different handling of data, we will update this policy and change the "last updated" date shown above. We recommend reviewing it from time to time.</p>
+
+      <h2>Contact</h2>
+      <p>For any question about this privacy policy, you can contact us at <a href="mailto:fondlyapp@mpabogados.eu">fondlyapp@mpabogados.eu</a>.</p>
+
+      <footer>
+        Fondly · iOS app · Mario Palomar, Barcelona (Spain)
+      </footer>
+    </div>
+
+  </div>
+
+  <script>
+    var botones = document.querySelectorAll('.idiomas button');
+    var secciones = document.querySelectorAll('.contenido-lang');
+    botones.forEach(function (boton) {
+      boton.addEventListener('click', function () {
+        var lang = boton.getAttribute('data-lang');
+        botones.forEach(function (b) { b.classList.toggle('activo', b === boton); });
+        secciones.forEach(function (s) { s.hidden = s.getAttribute('data-lang') !== lang; });
+        document.documentElement.lang = lang;
+      });
+    });
+  </script>
 </body>
 </html>
