@@ -5,10 +5,15 @@ import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { inicializarCompras } from '@/lib/compras';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+// Se inicializa una sola vez al cargar el modulo, no dentro del componente:
+// asi no se repite en cada render ni en cada remount de RootLayout.
+inicializarCompras();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

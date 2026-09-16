@@ -1,6 +1,8 @@
 import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Purchases from 'react-native-purchases';
+import { ID_SUSCRIPCION, ID_PACK, ENTITLEMENT_PREMIUM } from '@/lib/compras';
+import { anadirCreditosPack } from '@/lib/uso';
 
 // ── Pantalla de paywall ────────────────────────────
 // Se recibe vía params:
@@ -8,13 +10,6 @@ import Purchases from 'react-native-purchases';
 //   selecciones: número de selecciones usadas
 //   diasRestantes: días que faltan para resetear el ciclo
 //   mbLiberados: MB liberados este ciclo (opcional, 0 si no se tiene)
-
-// IDs exactos dados de alta en App Store Connect y en RevenueCat.
-const ID_SUSCRIPCION = 'fondly_unlimited_monthly';
-const ID_PACK = 'fondly_pack50';
-// Entitlement de RevenueCat que marca a un usuario como premium (ligado
-// solo a la suscripción; el pack no otorga entitlement, ver lib/uso.ts).
-const ENTITLEMENT_PREMIUM = 'com_mariopalomar_fondly_pro';
 
 export default function Paywall() {
   const router = useRouter();
@@ -69,8 +64,7 @@ export default function Paywall() {
         return;
       }
       await Purchases.purchaseStoreProduct(producto);
-      // TODO (paso 3 del Bloque B): sumar 50 selecciones en lib/uso.ts
-      // tras confirmar esta compra consumible.
+      await anadirCreditosPack(50);
       Alert.alert('¡Listo!', 'Se han añadido 50 selecciones a tu cuenta.');
       cerrar();
     } catch (error: any) {
