@@ -32,7 +32,7 @@ export default function Paywall() {
   }
 
   async function comprarPack() {
-    // TODO: llamar a expo-iap con 'fondly_pack_50'
+    // TODO: llamar a expo-iap con 'fondly_pack50'
     console.log('[Paywall] Compra pack — pendiente de conectar');
   }
 
