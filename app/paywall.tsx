@@ -1,4 +1,4 @@
-import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Alert, View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Purchases from 'react-native-purchases';
 import { ID_SUSCRIPCION, ID_PACK, ENTITLEMENT_PREMIUM } from '@/lib/compras';
@@ -91,6 +91,14 @@ export default function Paywall() {
     }
   }
 
+  function abrirTerminos() {
+    Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+  }
+
+  function abrirPrivacidad() {
+    Linking.openURL('https://yetonko.github.io/app-fotos/');
+  }
+
   function cerrar() {
     if (esBloqueo) {
       // En bloqueo real: vuelve a Home, no puede iniciar torneo
@@ -140,6 +148,16 @@ export default function Paywall() {
       <Pressable onPress={restaurar}>
         <Text style={estilos.enlace}>Restaurar compras</Text>
       </Pressable>
+
+      <View style={estilos.filaLegal}>
+        <Pressable onPress={abrirTerminos}>
+          <Text style={estilos.enlaceLegal}>Términos</Text>
+        </Pressable>
+        <Text style={estilos.separadorLegal}>·</Text>
+        <Pressable onPress={abrirPrivacidad}>
+          <Text style={estilos.enlaceLegal}>Privacidad</Text>
+        </Pressable>
+      </View>
 
       <Pressable onPress={cerrar} style={estilos.botonCerrar}>
         <Text style={estilos.textoCerrar}>
@@ -269,6 +287,21 @@ const estilos = StyleSheet.create({
   },
   botonCerrar: {
     paddingVertical: 10,
+  },
+  filaLegal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  enlaceLegal: {
+    fontSize: 12,
+    color: '#8B7D6B',
+    textDecorationLine: 'underline',
+  },
+  separadorLegal: {
+    fontSize: 12,
+    color: '#8B7D6B',
+    marginHorizontal: 6,
   },
   textoCerrar: {
     fontSize: 15,

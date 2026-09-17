@@ -22,11 +22,18 @@
             "NSPrivacyAccessedAPITypeReasons": [
               "CA92.1"
             ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ]
       },
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Fondly usa tus fotos para encontrar las que se parecen y ayudarte a elegir tu favorita."
+        "NSPhotoLibraryUsageDescription": "Fondly usa tus fotos para encontrar las que se parecen y ayudarte a elegir tu favorita.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

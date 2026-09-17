@@ -1,78 +1,89 @@
 import * as MediaLibrary from 'expo-media-library';
 
-// Un periodo es un semestre natural: Ene-Jun o Jul-Dic de un año concreto.
-// Se usan semestres fijos (no una ventana móvil desde "hoy") porque son más
-// fáciles de reconocer para el usuario ("la primera mitad de 2023") y no
-// cambian de límites según el día en que se abra la app.
+// Un periodo es un trimestre natural: Ene-Mar, Abr-Jun, Jul-Sep u Oct-Dic de
+// un año concreto. Se usan trimestres fijos (no una ventana móvil desde
+// "hoy") porque son más fáciles de reconocer para el usuario ("el primer
+// trimestre de 2026") y no cambian de límites según el día en que se abra
+// la app. Antes eran semestres; se pasó a trimestres para que cada periodo
+// tenga menos fotos y no se haga eterno de revisar.
 export type Periodo = {
-  id: string; // ej. '2026-H1'
-  etiqueta: string; // ej. 'Ene - Jun 2026'
+  id: string; // ej. '2026-Q1'
+  etiqueta: string; // ej. 'Ene - Mar 2026'
   desde: number; // timestamp (ms) del primer instante del periodo
   hasta: number; // timestamp (ms) del último instante del periodo
 };
 
-const MESES_INICIO_SEMESTRE = { 1: 0, 2: 6 } as const; // enero=0, julio=6 en Date
+const MESES_INICIO_TRIMESTRE = { 1: 0, 2: 3, 3: 6, 4: 9 } as const; // ene=0, abr=3, jul=6, oct=9 en Date
+type Trimestre = 1 | 2 | 3 | 4;
 
-function limitesSemestre(anio: number, semestre: 1 | 2): { desde: number; hasta: number } {
-  const mesInicio = MESES_INICIO_SEMESTRE[semestre];
+function limitesTrimestre(anio: number, trimestre: Trimestre): { desde: number; hasta: number } {
+  const mesInicio = MESES_INICIO_TRIMESTRE[trimestre];
   const desde = new Date(anio, mesInicio, 1, 0, 0, 0, 0).getTime();
-  // Un mes por delante y un milisegundo atrás = último instante del semestre,
-  // sin tener que calcular a mano cuántos días tiene el último mes.
-  const hasta = new Date(anio, mesInicio + 6, 1, 0, 0, 0, 0).getTime() - 1;
+  // Un mes (x3) por delante y un milisegundo atrás = último instante del
+  // trimestre, sin tener que calcular a mano cuántos días tiene el último mes.
+  const hasta = new Date(anio, mesInicio + 3, 1, 0, 0, 0, 0).getTime() - 1;
   return { desde, hasta };
 }
 
-function etiquetaSemestre(anio: number, semestre: 1 | 2): string {
-  return semestre === 1 ? `Ene - Jun ${anio}` : `Jul - Dic ${anio}`;
+const ETIQUETAS_TRIMESTRE: Record<Trimestre, string> = {
+  1: 'Ene - Mar',
+  2: 'Abr - Jun',
+  3: 'Jul - Sep',
+  4: 'Oct - Dic',
+};
+
+function etiquetaTrimestre(anio: number, trimestre: Trimestre): string {
+  return `${ETIQUETAS_TRIMESTRE[trimestre]} ${anio}`;
 }
 
-function semestreDe(fecha: number): { anio: number; semestre: 1 | 2 } {
+function trimestreDe(fecha: number): { anio: number; trimestre: Trimestre } {
   const d = new Date(fecha);
-  return { anio: d.getFullYear(), semestre: d.getMonth() < 6 ? 1 : 2 };
+  const trimestre = (Math.floor(d.getMonth() / 3) + 1) as Trimestre;
+  return { anio: d.getFullYear(), trimestre };
 }
 
-// Genera la lista de periodos semestrales desde el más reciente (que
+// Genera la lista de periodos trimestrales desde el más reciente (que
 // contiene `ahora`) hacia atrás, hasta cubrir `fechaMasAntigua` inclusive.
 // Devuelve el más reciente primero, igual que el resto de listas de la app.
 export function generarPeriodos(fechaMasAntigua: number, ahora: number = Date.now()): Periodo[] {
-  const fin = semestreDe(ahora);
+  const fin = trimestreDe(ahora);
 
   // Caso borde: si la fecha "más antigua" es en realidad posterior a
   // "ahora" (carrete vacío, o el reloj del dispositivo dando datos raros),
-  // no hay nada que recorrer hacia atrás — devolvemos solo el semestre
+  // no hay nada que recorrer hacia atrás — devolvemos solo el trimestre
   // actual en vez de arriesgarnos a un bucle que no encuentra su salida.
   if (fechaMasAntigua >= ahora) {
-    const { desde, hasta } = limitesSemestre(fin.anio, fin.semestre);
-    return [{ id: `${fin.anio}-H${fin.semestre}`, etiqueta: etiquetaSemestre(fin.anio, fin.semestre), desde, hasta }];
+    const { desde, hasta } = limitesTrimestre(fin.anio, fin.trimestre);
+    return [{ id: `${fin.anio}-Q${fin.trimestre}`, etiqueta: etiquetaTrimestre(fin.anio, fin.trimestre), desde, hasta }];
   }
 
-  const inicio = semestreDe(fechaMasAntigua);
+  const inicio = trimestreDe(fechaMasAntigua);
 
   const periodos: Periodo[] = [];
   let anio = fin.anio;
-  let semestre = fin.semestre;
+  let trimestre = fin.trimestre;
 
   // Segunda red de seguridad, por si algún caso borde no previsto hiciera
-  // que el bucle no encontrara nunca el semestre de salida.
-  const limiteIteraciones = 200; // 100 años de margen, de sobra
+  // que el bucle no encontrara nunca el trimestre de salida.
+  const limiteIteraciones = 400; // 100 años de margen, de sobra (4 trimestres/año)
   let iteraciones = 0;
 
   while (iteraciones < limiteIteraciones) {
-    const { desde, hasta } = limitesSemestre(anio, semestre);
+    const { desde, hasta } = limitesTrimestre(anio, trimestre);
     periodos.push({
-      id: `${anio}-H${semestre}`,
-      etiqueta: etiquetaSemestre(anio, semestre),
+      id: `${anio}-Q${trimestre}`,
+      etiqueta: etiquetaTrimestre(anio, trimestre),
       desde,
       hasta,
     });
 
-    if (anio === inicio.anio && semestre === inicio.semestre) break;
+    if (anio === inicio.anio && trimestre === inicio.trimestre) break;
 
-    if (semestre === 2) {
-      semestre = 1;
-    } else {
-      semestre = 2;
+    if (trimestre === 1) {
+      trimestre = 4;
       anio -= 1;
+    } else {
+      trimestre = (trimestre - 1) as Trimestre;
     }
     iteraciones++;
   }

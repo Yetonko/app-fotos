@@ -96,6 +96,10 @@ export default function SeleccionScreen() {
   const [estado, setEstado] = useState<EstadoTorneo>(() => iniciarTorneo(candidatasOriginales));
   const [comparacionActual, setComparacionActual] = useState(1);
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
+  // Foto ampliada dentro del duelo: guarda el id (no la uri) para poder
+  // calcular el índice inicial dentro de [fotoA, fotoB] y permitir
+  // deslizar entre ambas sin salir del zoom.
+  const [duelAmpliadoId, setDuelAmpliadoId] = useState<string | null>(null);
   const [borrando, setBorrando] = useState(false);
   const [mejorando, setMejorando] = useState(false);
   const [fotoMejorada, setFotoMejorada] = useState<ResultadoMejora | null>(null);
@@ -157,7 +161,7 @@ export default function SeleccionScreen() {
     } else {
       ultimoToqueRef.current[foto.id] = ahora;
       toqueTimeoutRef.current[foto.id] = setTimeout(() => {
-        setFotoAmpliada(foto.uri);
+        setDuelAmpliadoId(foto.id);
         toqueTimeoutRef.current[foto.id] = null;
       }, 300);
     }
@@ -688,9 +692,14 @@ export default function SeleccionScreen() {
       </ScrollView>
 
       <ZoomablePhotoModal
-        uri={fotoAmpliada}
-        visible={!!fotoAmpliada}
-        onClose={() => setFotoAmpliada(null)}
+        fotos={[fotoA, fotoB]}
+        indiceInicial={duelAmpliadoId === fotoA.id ? 0 : 1}
+        visible={!!duelAmpliadoId}
+        onClose={() => setDuelAmpliadoId(null)}
+        onElegir={(foto) => {
+          marcarCoachmarkVisto('torneo_doble_tap');
+          elegir(foto);
+        }}
       />
     </View>
   );

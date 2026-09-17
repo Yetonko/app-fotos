@@ -33,9 +33,9 @@ const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
 const PASOS = [
   {
     emoji: '✨',
-    titulo: 'Elige la foto\nque te representa',
+    titulo: 'Encuentra tu mejor foto\ny publícala',
     texto:
-      'Encuentra el momento, compara tus fotos parecidas y quédate con la que de verdad va contigo. Ah, y de paso, haces sitio para el próximo momento.',
+      'Agrupamos las fotos parecidas de un mismo momento. Tú eliges la que más te gusta y la compartes al momento — sin vueltas. De paso, haces sitio para el siguiente.',
     boton: 'Siguiente',
   },
   {

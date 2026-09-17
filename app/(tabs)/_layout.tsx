@@ -24,6 +24,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="momento"
+        options={{
+          title: 'Momento',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bolt.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           title: 'Periodos',
