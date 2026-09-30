@@ -624,6 +624,11 @@ export default function SeleccionScreen() {
         contentContainerStyle={styles.scrollContenido}
         showsVerticalScrollIndicator={false}
       >
+        {/* Salir del torneo sin elegir: no se pierde nada ni gasta una
+            selección gratis (solo se cuenta al elegir ganadora). */}
+        <Pressable style={styles.botonSalirTorneo} onPress={() => router.back()} hitSlop={10}>
+          <Text style={styles.botonSalirTorneoTexto}>{T.comun.volver}</Text>
+        </Pressable>
         <View style={styles.progresoContenedor}>
           {Array.from({ length: totalComparaciones }).map((_, i) => (
             <View
@@ -799,6 +804,18 @@ const styles = StyleSheet.create({
   opcion: {
     alignItems: 'center',
     marginBottom: 24,
+  },
+  botonSalirTorneo: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingRight: 12,
+    marginTop: -16,
+    marginBottom: 8,
+  },
+  botonSalirTorneoTexto: {
+    fontSize: 17,
+    color: COLORES.acento,
+    fontWeight: '600',
   },
   progresoContenedor: {
     flexDirection: 'row',
