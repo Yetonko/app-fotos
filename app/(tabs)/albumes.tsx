@@ -21,6 +21,7 @@ const COLORES = {
 };
 
 import { nombreMesLargo } from '@/lib/idioma';
+import { T } from '@/lib/i18n';
 
 // Clave 'YYYY-MM' (para agrupar y ordenar) y nombre visible 'Agosto 2026'
 // a partir de un creationTime en milisegundos.
@@ -91,15 +92,12 @@ export default function AlbumesScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>Tus momentos</Text>
+      <Text style={styles.titulo}>{T.albumes.titulo}</Text>
 
       {!cargando && albumes.length === 0 && (
         <View style={styles.vacioContenedor}>
           <Text style={styles.vacioEmoji}>📷</Text>
-          <Text style={styles.vacioTexto}>
-            Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en
-            Home.
-          </Text>
+          <Text style={styles.vacioTexto}>{T.albumes.vacio}</Text>
         </View>
       )}
 
@@ -122,7 +120,7 @@ export default function AlbumesScreen() {
               <View style={styles.tarjetaCuerpo}>
                 <Text style={styles.tarjetaTitulo}>{item.nombreMostrar}</Text>
                 <Text style={styles.tarjetaSubtitulo}>
-                  {item.numFotos} {item.numFotos === 1 ? 'foto elegida' : 'fotos elegidas'}
+                  {T.albumes.fotosElegidas(item.numFotos)}
                 </Text>
               </View>
             </BouncyPressable>

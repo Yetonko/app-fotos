@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
-import { formatearNumero } from '@/lib/idioma';
+import { T } from '@/lib/i18n';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
@@ -30,7 +30,7 @@ const COLORES = {
   textoSecundario: '#8C8171',
 };
 
-const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
+const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : T.comun.movil;
 
 // A partir de este número de fotos en el periodo, avisamos de que puede
 // tardar un poco más de lo normal — no bloqueamos el acceso, solo avisamos
@@ -40,8 +40,7 @@ const AVISO_MUCHAS_FOTOS = 800;
 type PeriodoConConteo = Periodo & { totalFotos: number; portadaUri: string | null };
 
 function formatearConteo(n: number): string {
-  const numero = formatearNumero(n);
-  return `${numero} ${n === 1 ? 'foto' : 'fotos'}`;
+  return T.comun.fotos(n);
 }
 
 export default function ExploreScreen() {
@@ -67,7 +66,7 @@ export default function ExploreScreen() {
 
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== 'granted') {
-          setError(`No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${DISPOSITIVO}.`);
+          setError(T.periodos.errorPermisos(DISPOSITIVO));
           setCargando(false);
           return;
         }
@@ -103,7 +102,7 @@ export default function ExploreScreen() {
 
         setPeriodos(conConteo.filter((p) => p.totalFotos > 0));
       } catch {
-        setError('No hemos podido revisar tus periodos. Inténtalo de nuevo.');
+        setError(T.periodos.errorCarga);
       } finally {
         setCargando(false);
       }
@@ -133,13 +132,13 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>Tus recuerdos por épocas</Text>
-      <Text style={styles.subtitulo}>Revive cada época y quédate con lo mejor</Text>
+      <Text style={styles.titulo}>{T.periodos.titulo}</Text>
+      <Text style={styles.subtitulo}>{T.periodos.subtitulo}</Text>
 
       {cargando && (
         <View style={styles.centrado}>
           <ActivityIndicator color={COLORES.acento} size="large" />
-          <Text style={styles.textoCargando}>Revisando tu carrete por periodos...</Text>
+          <Text style={styles.textoCargando}>{T.periodos.cargando}</Text>
         </View>
       )}
 
@@ -152,7 +151,7 @@ export default function ExploreScreen() {
       {!cargando && !error && periodos.length === 0 && (
         <View style={styles.centrado}>
           <Text style={styles.emoji}>📅</Text>
-          <Text style={styles.textoVacio}>No hemos encontrado fotos en tu carrete todavía.</Text>
+          <Text style={styles.textoVacio}>{T.periodos.vacio}</Text>
         </View>
       )}
 
@@ -179,13 +178,11 @@ export default function ExploreScreen() {
                 <View style={styles.tarjetaCuerpo}>
                   <Text style={styles.tarjetaTitulo}>
                     {item.etiqueta}
-                    {revisado ? '  ·  Revisado ✓' : ''}
+                    {revisado ? T.periodos.revisado : ''}
                   </Text>
                   <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
                   {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
-                    <Text style={styles.tarjetaAviso}>
-                      Son bastantes fotos, puede tardar un poco más
-                    </Text>
+                    <Text style={styles.tarjetaAviso}>{T.periodos.avisoMuchasFotos}</Text>
                   )}
                 </View>
               </BouncyPressable>

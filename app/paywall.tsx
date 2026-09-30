@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Purchases from 'react-native-purchases';
 import { ID_SUSCRIPCION, ID_PACK, ENTITLEMENT_PREMIUM } from '@/lib/compras';
 import { anadirCreditosPack } from '@/lib/uso';
+import { T } from '@/lib/i18n';
 
 // ── Pantalla de paywall ────────────────────────────
 // Se recibe vía params:
@@ -51,8 +52,8 @@ export default function Paywall() {
       const producto = productos[0];
       if (!producto) {
         Alert.alert(
-          'No disponible',
-          'No hemos podido cargar la suscripción. Inténtalo de nuevo en unos minutos.'
+          T.paywall.noDisponible,
+          T.paywall.errorCargaSuscripcion
         );
         return;
       }
@@ -63,7 +64,7 @@ export default function Paywall() {
     } catch (error: any) {
       // El usuario puede cancelar el diálogo de compra: no es un error real.
       if (!error?.userCancelled) {
-        Alert.alert('No se pudo completar la compra', 'Inténtalo de nuevo más tarde.');
+        Alert.alert(T.paywall.compraFallida, T.comun.intentaloMasTarde);
       }
     }
   }
@@ -74,18 +75,18 @@ export default function Paywall() {
       const producto = productos[0];
       if (!producto) {
         Alert.alert(
-          'No disponible',
-          'No hemos podido cargar el pack. Inténtalo de nuevo en unos minutos.'
+          T.paywall.noDisponible,
+          T.paywall.errorCargaPack
         );
         return;
       }
       await Purchases.purchaseStoreProduct(producto);
       await anadirCreditosPack(50);
-      Alert.alert('¡Listo!', 'Se han añadido 50 selecciones a tu cuenta.');
+      Alert.alert(T.paywall.listo, T.paywall.packAnadido);
       cerrar();
     } catch (error: any) {
       if (!error?.userCancelled) {
-        Alert.alert('No se pudo completar la compra', 'Inténtalo de nuevo más tarde.');
+        Alert.alert(T.paywall.compraFallida, T.comun.intentaloMasTarde);
       }
     }
   }
@@ -94,16 +95,16 @@ export default function Paywall() {
     try {
       const customerInfo = await Purchases.restorePurchases();
       if (customerInfo.entitlements.active[ENTITLEMENT_PREMIUM]) {
-        Alert.alert('Compras restauradas', 'Tu suscripción está activa.');
+        Alert.alert(T.paywall.restauradasTitulo, T.paywall.restauradasTexto);
         cerrar();
       } else {
         Alert.alert(
-          'Nada que restaurar',
-          'No hemos encontrado compras previas en esta cuenta de Apple.'
+          T.paywall.nadaRestaurarTitulo,
+          T.paywall.nadaRestaurarTexto
         );
       }
     } catch (error) {
-      Alert.alert('No se pudo restaurar', 'Inténtalo de nuevo más tarde.');
+      Alert.alert(T.paywall.restaurarFallido, T.comun.intentaloMasTarde);
     }
   }
 
@@ -129,55 +130,50 @@ export default function Paywall() {
     <View style={estilos.fondo}>
       {/* ── Celebración ── */}
       <Text style={estilos.emoji}>✨</Text>
-      <Text style={estilos.titulo}>¡Gran mes!</Text>
-      <Text style={estilos.subtitulo}>
-        Has elegido tus {selecciones} mejores fotos
-        {mbLiberados > 0 ? ` y liberado ${mbLiberados} MB` : ''}
-      </Text>
-      <Text style={estilos.ciclo}>
-        Tu ciclo gratuito se renueva en {diasRestantes} día{diasRestantes !== 1 ? 's' : ''}
-      </Text>
+      <Text style={estilos.titulo}>{T.paywall.titulo}</Text>
+      <Text style={estilos.subtitulo}>{T.paywall.subtitulo(selecciones, mbLiberados)}</Text>
+      <Text style={estilos.ciclo}>{T.paywall.ciclo(diasRestantes)}</Text>
 
       {/* ── Opciones de compra ── */}
       <View style={estilos.tarjetaDestacada}>
         <View style={estilos.etiquetaPopular}>
-          <Text style={estilos.textoEtiqueta}>Popular</Text>
+          <Text style={estilos.textoEtiqueta}>{T.paywall.popular}</Text>
         </View>
-        <Text style={estilos.tituloOpcion}>Ilimitado</Text>
-        <Text style={estilos.precio}>{precioSuscripcion}/mes</Text>
-        <Text style={estilos.descripcionOpcion}>Elige sin límites, todos los meses</Text>
+        <Text style={estilos.tituloOpcion}>{T.paywall.ilimitadoTitulo}</Text>
+        <Text style={estilos.precio}>{T.paywall.precioMensual(precioSuscripcion)}</Text>
+        <Text style={estilos.descripcionOpcion}>{T.paywall.ilimitadoDescripcion}</Text>
         <Pressable style={estilos.botonPrincipal} onPress={comprarSuscripcion}>
-          <Text style={estilos.textoBotonPrincipal}>Suscribirme</Text>
+          <Text style={estilos.textoBotonPrincipal}>{T.paywall.suscribirme}</Text>
         </Pressable>
       </View>
 
       <View style={estilos.tarjetaSecundaria}>
-        <Text style={estilos.tituloOpcion}>Pack de 50</Text>
+        <Text style={estilos.tituloOpcion}>{T.paywall.packTitulo}</Text>
         <Text style={estilos.precio}>{precioPack}</Text>
-        <Text style={estilos.descripcionOpcion}>50 selecciones extra, sin caducidad</Text>
+        <Text style={estilos.descripcionOpcion}>{T.paywall.packDescripcion}</Text>
         <Pressable style={estilos.botonSecundario} onPress={comprarPack}>
-          <Text style={estilos.textoBotonSecundario}>Comprar pack</Text>
+          <Text style={estilos.textoBotonSecundario}>{T.paywall.comprarPack}</Text>
         </Pressable>
       </View>
 
       {/* ── Restaurar + cerrar ── */}
       <Pressable onPress={restaurar}>
-        <Text style={estilos.enlace}>Restaurar compras</Text>
+        <Text style={estilos.enlace}>{T.paywall.restaurar}</Text>
       </Pressable>
 
       <View style={estilos.filaLegal}>
         <Pressable onPress={abrirTerminos}>
-          <Text style={estilos.enlaceLegal}>Términos</Text>
+          <Text style={estilos.enlaceLegal}>{T.paywall.terminos}</Text>
         </Pressable>
         <Text style={estilos.separadorLegal}>·</Text>
         <Pressable onPress={abrirPrivacidad}>
-          <Text style={estilos.enlaceLegal}>Privacidad</Text>
+          <Text style={estilos.enlaceLegal}>{T.paywall.privacidad}</Text>
         </Pressable>
       </View>
 
       <Pressable onPress={cerrar} style={estilos.botonCerrar}>
         <Text style={estilos.textoCerrar}>
-          {esBloqueo ? 'Volver al inicio' : 'Ahora no'}
+          {esBloqueo ? T.paywall.volverInicio : T.paywall.ahoraNo}
         </Text>
       </Pressable>
     </View>

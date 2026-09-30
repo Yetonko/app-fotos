@@ -49,3 +49,25 @@ export function nombreMesCorto(mes: number): string {
 export function formatearNumero(n: number): string {
   return n.toLocaleString(LOCALE);
 }
+
+// Fecha corta con día de la semana para las tarjetas de Home.
+// es: "Sáb 30 ago"   en: "Sat Aug 30"
+const DIAS_CORTOS: Record<Idioma, string[]> = {
+  es: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+};
+
+export function fechaConDia(creationTime: number): string {
+  const f = new Date(creationTime);
+  const dia = DIAS_CORTOS[IDIOMA][f.getDay()];
+  if (IDIOMA === 'en') {
+    return `${dia} ${MESES_CORTOS.en[f.getMonth()]} ${f.getDate()}`;
+  }
+  return `${dia} ${f.getDate()} ${MESES_CORTOS.es[f.getMonth()].toLowerCase()}`;
+}
+
+// Número con decimales fijos: es "12,4"  en "12.4"
+export function formatearDecimal(n: number, decimales: number): string {
+  const texto = n.toFixed(decimales);
+  return IDIOMA === 'es' ? texto.replace('.', ',') : texto;
+}

@@ -22,6 +22,7 @@ import {
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { fechaConDia } from '@/lib/idioma';
 import { Image } from 'expo-image';
 
 // --- Sistema de diseño (paleta cálida, suavizada hacia coral-rosado) -----
@@ -62,18 +63,7 @@ const FRASES_ESCANEO = [
   'Casi está…',
 ];
 
-// Fecha legible con día de la semana para el título del momento, ej.
-// "Sáb 30 ago". Se define aquí para no tocar etiquetas.ts, que usa un
-// formato distinto (año + mes) pensado para búsqueda futura.
-const DIAS_ABREV = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MESES_MINUS = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
-];
-function fechaConDia(creationTime: number): string {
-  const f = new Date(creationTime);
-  return `${DIAS_ABREV[f.getDay()]} ${f.getDate()} ${MESES_MINUS[f.getMonth()]}`;
-}
+// fechaConDia (ej. "Sáb 30 ago") vive ahora en lib/idioma.ts
 
 type GrupoConDistancias = GrupoFotos & {
   distancias: number[];

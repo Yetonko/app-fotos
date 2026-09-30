@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { formatearDecimal } from './idioma';
 
 // Por debajo de este umbral (en bytes) consideramos el espacio "crítico":
 // es donde iOS empieza a ralentizarse y a fallar la cámara. Se muestra en
@@ -14,7 +15,7 @@ const MB = 1024 * 1024;
 export function formatearBytes(bytes: number): string {
   if (bytes >= GB) {
     const gb = bytes / GB;
-    return `${gb.toFixed(1).replace('.', ',')} GB`;
+    return `${formatearDecimal(gb, 1)} GB`;
   }
   const mb = Math.round(bytes / MB);
   return `${mb} MB`;
