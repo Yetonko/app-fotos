@@ -23,6 +23,7 @@ import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { fechaConDia } from '@/lib/idioma';
+import { T } from '@/lib/i18n';
 import { Image } from 'expo-image';
 
 // --- Sistema de diseño (paleta cálida, suavizada hacia coral-rosado) -----
@@ -41,7 +42,7 @@ const COLORES = {
 
 // Igual que en bienvenida.tsx: "iPhone" en iOS, "móvil" en cualquier otro
 // caso (Android), sin necesidad de ninguna librería nueva.
-const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
+const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : T.comun.movil;
 
 // La papelera de 30 días de "Eliminados recientemente" es un comportamiento
 // verificado de iOS. En Android varía según el fabricante y la app de
@@ -49,19 +50,14 @@ const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
 // carpeta concretos. (Mismo texto que en seleccion.tsx.)
 const TEXTO_RECUPERACION =
   Platform.OS === 'ios'
-    ? 'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.'
-    : 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.';
+    ? T.comun.recuperacionIos
+    : T.comun.recuperacionAndroid;
 
 type CandidataConUri = { id: string; uri: string; nitidez?: number };
 
 // Frases cálidas que rotan durante el escaneo, en vez de un contador
 // técnico. Transmiten cuidado en lugar de tarea pendiente.
-const FRASES_ESCANEO = [
-  'Mirando tus fotos con cariño…',
-  'Agrupando lo que va junto…',
-  'Buscando tus mejores momentos…',
-  'Casi está…',
-];
+const FRASES_ESCANEO = T.home.frasesEscaneo;
 
 // fechaConDia (ej. "Sáb 30 ago") vive ahora en lib/idioma.ts
 
@@ -252,28 +248,28 @@ export default function HomeScreen() {
   const descartarGrupoCompleto = (item: GrupoConDistancias) => {
     const idsTodo = item.candidatas.map((c) => c.id);
     Alert.alert(
-      'Borrar todas las fotos',
-      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de este momento, sin elegir ninguna. ${TEXTO_RECUPERACION}`,
+      T.comun.borrarTodo.titulo,
+      T.comun.borrarTodo.mensaje(idsTodo.length, TEXTO_RECUPERACION),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: T.comun.cancelar, style: 'cancel' },
         {
-          text: 'Borrar todas',
+          text: T.comun.borrarTodo.boton,
           style: 'destructive',
           onPress: async () => {
             try {
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
               if (!borradoOk) {
                 Alert.alert(
-                  'No se ha borrado nada',
-                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                  T.comun.borrarTodo.nadaBorradoTitulo,
+                  T.comun.borrarTodo.nadaBorradoTexto
                 );
                 return;
               }
               setGrupos((actuales) => actuales.filter((g) => g.grupoId !== item.grupoId));
             } catch {
               Alert.alert(
-                'No hemos podido eliminar las fotos.',
-                'Revisa los permisos e inténtalo de nuevo.'
+                T.comun.borrarTodo.errorTitulo,
+                T.comun.borrarTodo.errorTexto
               );
             }
           },
@@ -302,7 +298,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <Text style={styles.titulo}>Fondly</Text>
-      <Text style={styles.insigniaPrivacidad}>🔒 100% en tu {DISPOSITIVO}</Text>
+      <Text style={styles.insigniaPrivacidad}>{T.home.insigniaPrivacidad(DISPOSITIVO)}</Text>
 
       {status === '¡Listo!' && (
         <View style={styles.cabeceraGanancia}>
@@ -310,14 +306,12 @@ export default function HomeScreen() {
             <Text
               style={[styles.espacioTexto, espacio.critico && styles.espacioCritico]}
             >
-              {espacio.critico ? 'Solo te quedan ' : 'Te quedan '}
-              {espacio.texto} libres
+              {T.home.espacioLibre(espacio.texto, espacio.critico)}
             </Text>
           )}
           {obtenerProgresoHoy().elegidas > 0 && (
             <Text style={styles.gananciaTexto}>
-              Llevas {obtenerProgresoHoy().elegidas}
-              {obtenerProgresoHoy().elegidas === 1 ? ' elegida' : ' elegidas'} hoy ✨
+              {T.home.elegidasHoy(obtenerProgresoHoy().elegidas)}
             </Text>
           )}
         </View>
@@ -394,8 +388,8 @@ export default function HomeScreen() {
 
               <View style={styles.tarjetaCuerpo}>
                 <Text style={styles.tarjetaTitulo}>
-                  {fechaConDia(item.fotos[0].creationTime)} · {item.fotos.length} fotos
-                  {revisado ? '  ·  Revisado ✓' : ''}
+                  {T.home.tituloTarjeta(fechaConDia(item.fotos[0].creationTime), item.fotos.length)}
+                  {revisado ? T.comun.revisado : ''}
                 </Text>
 
                 {item.candidatas.length > 0 && (
@@ -405,10 +399,10 @@ export default function HomeScreen() {
                   >
                     <Text style={ganadora ? styles.textoBotonSecundario : styles.textoBotonGrupo}>
                       {ganadora
-                        ? 'Volver a elegir'
+                        ? T.home.volverAElegir
                         : item.candidatas.length === 1
-                        ? 'Revisar y limpiar ✨'
-                        : 'Elegir la mejor foto ✨'}
+                        ? T.home.revisarYLimpiar
+                        : T.comun.elegirMejorFoto}
                     </Text>
                   </BouncyPressable>
                 )}
@@ -422,10 +416,8 @@ export default function HomeScreen() {
             style={styles.tarjetaExplorar}
             onPress={() => router.push('/explore')}
           >
-            <Text style={styles.textoExplorar}>📅 Revisar fotos más antiguas</Text>
-            <Text style={styles.subtextoExplorar}>
-              Elige tus mejores momentos de otros periodos
-            </Text>
+            <Text style={styles.textoExplorar}>{T.home.explorarTitulo}</Text>
+            <Text style={styles.subtextoExplorar}>{T.home.explorarSubtitulo}</Text>
           </BouncyPressable>
         }
         />

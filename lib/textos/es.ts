@@ -12,6 +12,84 @@ export const es = {
     movil: 'móvil',
     // "1 foto" / "1.234 fotos"
     fotos: (n: number) => `${formatearNumero(n)} ${n === 1 ? 'foto' : 'fotos'}`,
+    intentaloDeNuevo: 'Inténtalo de nuevo.',
+    cancelar: 'Cancelar',
+    revisado: '  ·  Revisado ✓',
+    elegirMejorFoto: 'Elegir la mejor foto ✨',
+    // Tras borrar, cómo recuperar las fotos. En Android varía según el
+    // fabricante, así que ahí no prometemos días ni nombre de carpeta.
+    recuperacionIos:
+      'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.',
+    recuperacionAndroid: 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.',
+    // Aviso "borrar todas las fotos de un momento" (Home y Periodo)
+    borrarTodo: {
+      titulo: 'Borrar todas las fotos',
+      mensaje: (n: number, recuperacion: string) =>
+        `Se ${n === 1 ? 'borrará' : 'borrarán'} ${n} ${n === 1 ? 'foto' : 'fotos'} de este momento, sin elegir ninguna. ${recuperacion}`,
+      boton: 'Borrar todas',
+      nadaBorradoTitulo: 'No se ha borrado nada',
+      nadaBorradoTexto: 'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.',
+      errorTitulo: 'No hemos podido eliminar las fotos.',
+      errorTexto: 'Revisa los permisos e inténtalo de nuevo.',
+    },
+  },
+
+  home: {
+    insigniaPrivacidad: (dispositivo: string) => `🔒 100% en tu ${dispositivo}`,
+    espacioLibre: (espacio: string, critico: boolean) =>
+      `${critico ? 'Solo te quedan ' : 'Te quedan '}${espacio} libres`,
+    elegidasHoy: (n: number) => `Llevas ${n}${n === 1 ? ' elegida' : ' elegidas'} hoy ✨`,
+    tituloTarjeta: (fecha: string, n: number) => `${fecha} · ${n} fotos`,
+    volverAElegir: 'Volver a elegir',
+    revisarYLimpiar: 'Revisar y limpiar ✨',
+    explorarTitulo: '📅 Revisar fotos más antiguas',
+    explorarSubtitulo: 'Elige tus mejores momentos de otros periodos',
+    // Frases que rotan mientras se escanea el carrete
+    frasesEscaneo: [
+      'Mirando tus fotos con cariño…',
+      'Agrupando lo que va junto…',
+      'Buscando tus mejores momentos…',
+      'Casi está…',
+    ],
+  },
+
+  momento: {
+    titulo: '⚡ Momento',
+    subtitulo: 'Súbelo antes de que se acabe',
+    ventana5min: 'Últimos 5 min',
+    ventana1h: 'Última hora',
+    ventanaHoy: 'Hoy',
+    vacio: 'No hay fotos en este rango. Prueba a ampliar la ventana de tiempo.',
+    publicar: 'Publicar',
+    quitar: 'Quitar',
+    descartar: 'Descartar',
+    preparando: 'Preparando...',
+    publicarN: (n: number) => `Publicar ${n} ${n === 1 ? 'foto' : 'fotos'}`,
+    listasTitulo: '¡Tus fotos están listas!',
+    listasTexto: (n: number) =>
+      `Hemos guardado tus ${n} fotos juntas en tu álbum Fondly. Ábrelo desde Instagram para publicarlas como carrusel.`,
+    entendido: 'Entendido',
+    errorCompartir: 'No hemos podido abrir las opciones para compartir.',
+    borrarDescartadasTitulo: '¿Borrar las descartadas?',
+    borrarDescartadasTexto: (n: number) =>
+      `Descartaste ${n} ${n === 1 ? 'foto' : 'fotos'}. ¿Quieres borrarlas del carrete para hacer sitio? Podrás recuperarlas 30 días desde Fotos.`,
+    noDejarlas: 'No, dejarlas',
+    borrar: 'Borrar',
+  },
+
+  // Pantalla de un periodo concreto (al tocar una tarjeta de Periodos)
+  periodo: {
+    volver: '‹ Volver',
+    tituloPorDefecto: 'Periodo',
+    vacio: 'No hemos encontrado fotos casi iguales en este periodo.',
+    tituloTarjeta: (numero: number, n: number) => `Momento ${numero} · ${n} fotos casi iguales`,
+    ningunaDeEstas: '🗑 No quiero ninguna de estas',
+    frasesEscaneo: [
+      'Mirando tus fotos con cariño…',
+      'Agrupando lo que va junto…',
+      'Reviviendo esta época…',
+      'Casi está…',
+    ],
   },
 
   paywall: {
@@ -61,7 +139,6 @@ export const es = {
     subtitulo: 'Revive cada época y quédate con lo mejor',
     cargando: 'Revisando tu carrete por periodos...',
     vacio: 'No hemos encontrado fotos en tu carrete todavía.',
-    revisado: '  ·  Revisado ✓',
     avisoMuchasFotos: 'Son bastantes fotos, puede tardar un poco más',
     errorPermisos: (dispositivo: string) =>
       `No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${dispositivo}.`,

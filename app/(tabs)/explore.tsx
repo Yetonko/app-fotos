@@ -178,7 +178,7 @@ export default function ExploreScreen() {
                 <View style={styles.tarjetaCuerpo}>
                   <Text style={styles.tarjetaTitulo}>
                     {item.etiqueta}
-                    {revisado ? T.periodos.revisado : ''}
+                    {revisado ? T.comun.revisado : ''}
                   </Text>
                   <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
                   {item.totalFotos >= AVISO_MUCHAS_FOTOS && (

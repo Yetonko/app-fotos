@@ -17,6 +17,7 @@ import {
 } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { T } from '@/lib/i18n';
 
 // Misma paleta que el resto de pantallas.
 const COLORES = {
@@ -36,15 +37,10 @@ type GrupoConCandidatas = GrupoDetectado & { candidatas: CandidataConUri[] };
 // Mismo texto que en seleccion.tsx / index.tsx.
 const TEXTO_RECUPERACION =
   Platform.OS === 'ios'
-    ? 'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.'
-    : 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.';
+    ? T.comun.recuperacionIos
+    : T.comun.recuperacionAndroid;
 
-const FRASES_ESCANEO = [
-  'Mirando tus fotos con cariño…',
-  'Agrupando lo que va junto…',
-  'Reviviendo esta época…',
-  'Casi está…',
-];
+const FRASES_ESCANEO = T.periodo.frasesEscaneo;
 
 export default function PeriodoScreen() {
   const router = useRouter();
@@ -178,28 +174,28 @@ export default function PeriodoScreen() {
   const descartarGrupoCompleto = (item: GrupoConCandidatas) => {
     const idsTodo = item.candidatas.map((c) => c.id);
     Alert.alert(
-      'Borrar todas las fotos',
-      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de este momento, sin elegir ninguna. ${TEXTO_RECUPERACION}`,
+      T.comun.borrarTodo.titulo,
+      T.comun.borrarTodo.mensaje(idsTodo.length, TEXTO_RECUPERACION),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: T.comun.cancelar, style: 'cancel' },
         {
-          text: 'Borrar todas',
+          text: T.comun.borrarTodo.boton,
           style: 'destructive',
           onPress: async () => {
             try {
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
               if (!borradoOk) {
                 Alert.alert(
-                  'No se ha borrado nada',
-                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                  T.comun.borrarTodo.nadaBorradoTitulo,
+                  T.comun.borrarTodo.nadaBorradoTexto
                 );
                 return;
               }
               setGrupos((actuales) => actuales.filter((g) => g.grupoId !== item.grupoId));
             } catch {
               Alert.alert(
-                'No hemos podido eliminar las fotos.',
-                'Revisa los permisos e inténtalo de nuevo.'
+                T.comun.borrarTodo.errorTitulo,
+                T.comun.borrarTodo.errorTexto
               );
             }
           },
@@ -213,9 +209,9 @@ export default function PeriodoScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.botonVolverTexto}>‹ Volver</Text>
+        <Text style={styles.botonVolverTexto}>{T.periodo.volver}</Text>
       </Pressable>
-      <Text style={styles.titulo}>{etiqueta ?? 'Periodo'}</Text>
+      <Text style={styles.titulo}>{etiqueta ?? T.periodo.tituloPorDefecto}</Text>
 
       {status !== '¡Listo!' && (
         <View style={styles.centrado}>
@@ -256,9 +252,7 @@ export default function PeriodoScreen() {
       {status === '¡Listo!' && grupos.length === 0 && (
         <View style={styles.centrado}>
           <Text style={styles.emoji}>✨</Text>
-          <Text style={styles.textoVacio}>
-            No hemos encontrado fotos casi iguales en este periodo.
-          </Text>
+          <Text style={styles.textoVacio}>{T.periodo.vacio}</Text>
         </View>
       )}
 
@@ -284,8 +278,8 @@ export default function PeriodoScreen() {
                 )}
                 <View style={styles.tarjetaCuerpo}>
                   <Text style={styles.tarjetaTitulo}>
-                    Momento {index + 1} · {item.fotos.length} fotos casi iguales
-                    {revisado ? '  ·  Revisado ✓' : ''}
+                    {T.periodo.tituloTarjeta(index + 1, item.fotos.length)}
+                    {revisado ? T.comun.revisado : ''}
                   </Text>
                   <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>
                     <Text style={styles.tarjetaEtiqueta}>
@@ -298,7 +292,7 @@ export default function PeriodoScreen() {
                       router.push({ pathname: '/seleccion', params: { grupoId: item.grupoId } })
                     }
                   >
-                    <Text style={styles.textoBoton}>Elegir la mejor foto ✨</Text>
+                    <Text style={styles.textoBoton}>{T.comun.elegirMejorFoto}</Text>
                   </BouncyPressable>
 
                   {!revisado && (
@@ -307,7 +301,7 @@ export default function PeriodoScreen() {
                       onPress={() => descartarGrupoCompleto(item)}
                       hitSlop={6}
                     >
-                      <Text style={styles.textoDescartarGrupo}>🗑 No quiero ninguna de estas</Text>
+                      <Text style={styles.textoDescartarGrupo}>{T.periodo.ningunaDeEstas}</Text>
                     </Pressable>
                   )}
                 </View>

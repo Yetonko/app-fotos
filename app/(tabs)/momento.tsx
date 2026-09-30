@@ -9,6 +9,7 @@ import { fotosDeVentana, ordenarPorTiempo, VentanaMomento, FotoMomento } from '@
 import { guardarEnAlbumFavoritas } from '@/lib/album';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { T } from '@/lib/i18n';
 
 // --- Sistema de diseño (mismos valores que el resto de pantallas) --------
 const COLORES = {
@@ -25,9 +26,9 @@ const COLORES = {
 // -------------------------------------------------------------------------
 
 const VENTANAS: { clave: VentanaMomento; etiqueta: string }[] = [
-  { clave: '5min', etiqueta: 'Últimos 5 min' },
-  { clave: '1h', etiqueta: 'Última hora' },
-  { clave: 'hoy', etiqueta: 'Hoy' },
+  { clave: '5min', etiqueta: T.momento.ventana5min },
+  { clave: '1h', etiqueta: T.momento.ventana1h },
+  { clave: 'hoy', etiqueta: T.momento.ventanaHoy },
 ];
 
 type FaseMomento = 'seleccion' | 'confirmacion';
@@ -103,9 +104,9 @@ export default function MomentoScreen() {
           await guardarEnAlbumFavoritas(foto.id);
         }
         Alert.alert(
-          '¡Tus fotos están listas!',
-          `Hemos guardado tus ${ordenadas.length} fotos juntas en tu álbum Fondly. Ábrelo desde Instagram para publicarlas como carrusel.`,
-          [{ text: 'Entendido' }]
+          T.momento.listasTitulo,
+          T.momento.listasTexto(ordenadas.length),
+          [{ text: T.momento.entendido }]
         );
         const info = await MediaLibrary.getAssetInfoAsync(ordenadas[0].id);
         await Share.share({ url: info.localUri ?? ordenadas[0].uri });
@@ -118,7 +119,7 @@ export default function MomentoScreen() {
         router.back();
       }
     } catch {
-      Alert.alert('No hemos podido abrir las opciones para compartir.', 'Inténtalo de nuevo.');
+      Alert.alert(T.momento.errorCompartir, T.comun.intentaloDeNuevo);
     } finally {
       setPublicando(false);
     }
@@ -127,12 +128,12 @@ export default function MomentoScreen() {
   // Borrado SIEMPRE opcional y con confirmación, nunca automático.
   const ofrecerBorrarDescartadas = () => {
     Alert.alert(
-      '¿Borrar las descartadas?',
-      `Descartaste ${fotosDescartadas.length} ${fotosDescartadas.length === 1 ? 'foto' : 'fotos'}. ¿Quieres borrarlas del carrete para hacer sitio? Podrás recuperarlas 30 días desde Fotos.`,
+      T.momento.borrarDescartadasTitulo,
+      T.momento.borrarDescartadasTexto(fotosDescartadas.length),
       [
-        { text: 'No, dejarlas', style: 'cancel', onPress: () => router.back() },
+        { text: T.momento.noDejarlas, style: 'cancel', onPress: () => router.back() },
         {
-          text: 'Borrar',
+          text: T.momento.borrar,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -151,8 +152,8 @@ export default function MomentoScreen() {
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
       {/* ── Cabecera ── */}
       <View style={styles.cabecera}>
-        <Text style={styles.titulo}>⚡ Momento</Text>
-        <Text style={styles.subtitulo}>Súbelo antes de que se acabe</Text>
+        <Text style={styles.titulo}>{T.momento.titulo}</Text>
+        <Text style={styles.subtitulo}>{T.momento.subtitulo}</Text>
       </View>
 
       {/* ── Selector de ventana ── */}
@@ -181,9 +182,7 @@ export default function MomentoScreen() {
         </View>
       ) : visibles.length === 0 ? (
         <View style={styles.centro}>
-          <Text style={styles.vacioTexto}>
-            No hay fotos en este rango. Prueba a ampliar la ventana de tiempo.
-          </Text>
+          <Text style={styles.vacioTexto}>{T.momento.vacio}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.grid}>
@@ -209,7 +208,7 @@ export default function MomentoScreen() {
                     hitSlop={6}
                   >
                     <Text style={[styles.botonMiniTexto, marcada && styles.botonMiniTextoActivo]}>
-                      {marcada ? 'Quitar' : 'Publicar'}
+                      {marcada ? T.momento.quitar : T.momento.publicar}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -217,7 +216,7 @@ export default function MomentoScreen() {
                     style={styles.botonMiniDescartar}
                     hitSlop={6}
                   >
-                    <Text style={styles.botonMiniDescartarTexto}>Descartar</Text>
+                    <Text style={styles.botonMiniDescartarTexto}>{T.momento.descartar}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -232,8 +231,8 @@ export default function MomentoScreen() {
           <BouncyPressable style={styles.botonPublicar} onPress={publicar} disabled={publicando}>
             <Text style={styles.botonPublicarTexto}>
               {publicando
-                ? 'Preparando...'
-                : `Publicar ${marcadas.length} ${marcadas.length === 1 ? 'foto' : 'fotos'}`}
+                ? T.momento.preparando
+                : T.momento.publicarN(marcadas.length)}
             </Text>
           </BouncyPressable>
         </View>
