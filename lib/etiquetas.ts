@@ -3,11 +3,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const CLAVE_ETIQUETAS = 'grupos_etiquetas';
 
 import { nombreMesCorto } from './idioma';
+import { T } from './i18n';
 
 // Texto que se muestra cuando el usuario todavia no ha puesto nombre a la
 // actividad de este grupo. Se muestra igual que un nombre real (tocable,
 // no como un error o hueco vacio) para invitar a rellenarlo.
-export const SIN_ETIQUETAR = 'Sin etiquetar';
+export const SIN_ETIQUETAR = T.comun.sinEtiquetar;
 
 // Cache en memoria para poder leer de forma sincrona desde el render de
 // las listas, igual que en lib/revisados.ts. Se rellena una vez por

@@ -12,6 +12,7 @@ import {
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
+import { T } from '@/lib/i18n';
 
 // Una foto navegable dentro del visor: solo necesita id (para poder
 // distinguirla al elegir) y uri (para mostrarla).
@@ -295,7 +296,7 @@ export function ZoomablePhotoModal({ uri, fotos, indiceInicial, visible, onClose
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.fondo}>
         <Pressable style={styles.botonCerrar} onPress={onClose}>
-          <ThemedText style={styles.textoCerrar}>✕ Cerrar</ThemedText>
+          <ThemedText style={styles.textoCerrar}>{T.visor.cerrar}</ThemedText>
         </Pressable>
         <View style={styles.areaGesto} {...panResponder.panHandlers}>
           <Animated.View

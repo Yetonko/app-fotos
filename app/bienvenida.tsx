@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
+import { T } from '@/lib/i18n';
 
 // --- Sistema de diseño (mismos valores que el resto de pantallas) --------
 const COLORES = {
@@ -22,7 +23,7 @@ const COLORES = {
 // Nombre del dispositivo a mostrar en el texto: "iPhone" en iOS, "móvil" en
 // cualquier otro caso (Android). Platform.OS ya viene con React Native, no
 // hace falta ninguna librería nueva para detectarlo.
-const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
+const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : T.comun.movil;
 
 // Los pasos del onboarding: primero el beneficio (qué gana el usuario, tanto
 // elegir la mejor foto como recuperar espacio), después la promesa de calma
@@ -33,23 +34,21 @@ const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : 'móvil';
 const PASOS = [
   {
     emoji: '✨',
-    titulo: 'Encuentra tu mejor foto\ny publícala',
-    texto:
-      'Agrupamos las fotos parecidas de un mismo momento. Tú eliges la que más te gusta y la compartes al momento — sin vueltas. De paso, haces sitio para el siguiente.',
-    boton: 'Siguiente',
+    titulo: T.bienvenida.paso1Titulo,
+    texto: T.bienvenida.paso1Texto,
+    boton: T.bienvenida.siguiente,
   },
   {
     emoji: '🌿',
-    titulo: 'Una foto cada vez',
-    texto:
-      'Vamos momento a momento, sin prisa. No borramos nada que tú no decidas: aquí tú tienes el control.',
-    boton: 'Siguiente',
+    titulo: T.bienvenida.paso2Titulo,
+    texto: T.bienvenida.paso2Texto,
+    boton: T.bienvenida.siguiente,
   },
   {
     emoji: '🔒',
-    titulo: 'Tus fotos son solo tuyas',
-    texto: `Todo pasa aquí, en tu ${DISPOSITIVO}. Ninguna foto sale de aquí: no hay servidores, no hay copias en la nube, no hay nadie más mirando.`,
-    boton: 'Empezar',
+    titulo: T.bienvenida.paso3Titulo,
+    texto: T.bienvenida.paso3Texto(DISPOSITIVO),
+    boton: T.bienvenida.empezar,
   },
 ];
 
@@ -115,7 +114,7 @@ export default function BienvenidaScreen() {
         hitSlop={10}
         style={[styles.botonAtras, paso === 0 && styles.botonAtrasOculto]}
       >
-        <Text style={styles.textoAtras}>‹ Atrás</Text>
+        <Text style={styles.textoAtras}>{T.bienvenida.atras}</Text>
       </Pressable>
 
       <View style={styles.contenido}>

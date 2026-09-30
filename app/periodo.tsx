@@ -209,7 +209,7 @@ export default function PeriodoScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.botonVolverTexto}>{T.periodo.volver}</Text>
+        <Text style={styles.botonVolverTexto}>{T.comun.volver}</Text>
       </Pressable>
       <Text style={styles.titulo}>{etiqueta ?? T.periodo.tituloPorDefecto}</Text>
 

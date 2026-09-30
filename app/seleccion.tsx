@@ -24,6 +24,8 @@ import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formate
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { T } from '@/lib/i18n';
+import { formatearDecimal } from '@/lib/idioma';
 
 // --- Sistema de diseño (mismos valores que app/(tabs)/index.tsx) --------
 const COLORES = {
@@ -64,7 +66,7 @@ async function calcularTamanoTotal(fotos: FotoCandidata[]): Promise<number> {
 function formatearTamano(bytes: number): string {
   if (bytes <= 0) return '';
   if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${formatearDecimal(bytes / (1024 * 1024), 1)} MB`;
   }
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
@@ -75,8 +77,8 @@ function formatearTamano(bytes: number): string {
 // carpeta concretos.
 const TEXTO_RECUPERACION =
   Platform.OS === 'ios'
-    ? 'Podrás recuperarlas desde "Eliminados recientemente" durante 30 días si cambias de opinión.'
-    : 'Podrás recuperarlas desde Eliminados recientemente si cambias de opinión.';
+    ? T.comun.recuperacionIos
+    : T.comun.recuperacionAndroid;
 
 export default function SeleccionScreen() {
   const router = useRouter();
@@ -177,9 +179,9 @@ export default function SeleccionScreen() {
         registrarMomento(grupoId, estado.ganadora, grupo.creationTime);
       }
       guardarEnAlbumFavoritas(estado.ganadora.id).then(setGuardadaEnAlbum);
-      Alert.alert('¡Ya tienes tu foto! ¿La publicamos?', undefined, [
-        { text: 'Ahora no', style: 'cancel' },
-        { text: 'Publicar', onPress: compartir },
+      Alert.alert(T.seleccion.yaTienesTuFoto, undefined, [
+        { text: T.comun.ahoraNo, style: 'cancel' },
+        { text: T.comun.publicar, onPress: compartir },
       ]);
     }
   }, [estado.ganadora, grupoId]);
@@ -251,7 +253,7 @@ export default function SeleccionScreen() {
       try {
         await Share.share({ url: estado.ganadora.uri });
       } catch {
-        Alert.alert('No hemos podido abrir las opciones para compartir.', 'Inténtalo de nuevo.');
+        Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
       }
     }
   };
@@ -264,7 +266,7 @@ export default function SeleccionScreen() {
       setFotoMejorada(resultado);
     } catch (error) {
       console.error('Error al mejorar la foto:', error);
-      Alert.alert('No hemos podido mejorar esta foto.', 'Prueba de nuevo.');
+      Alert.alert(T.seleccion.errorMejorar, T.seleccion.pruebaDeNuevo);
     } finally {
       setMejorando(false);
     }
@@ -274,10 +276,10 @@ export default function SeleccionScreen() {
     if (!fotoMejorada) return;
     try {
       await MediaLibrary.createAssetAsync(fotoMejorada.uri);
-      Alert.alert('¡Guardada!', 'La nueva versión ya está en tu carrete.');
+      Alert.alert(T.seleccion.guardadaTitulo, T.seleccion.guardadaTexto);
       setFotoMejorada(null);
     } catch {
-      Alert.alert('No hemos podido guardar la versión mejorada.', 'Inténtalo de nuevo.');
+      Alert.alert(T.seleccion.errorGuardarMejora, T.comun.intentaloDeNuevo);
     }
   };
 
@@ -293,12 +295,12 @@ export default function SeleccionScreen() {
   const confirmarYBorrarFotos = (idsABorrar: string[]) => {
     if (idsABorrar.length === 0) return;
     Alert.alert(
-      'Borrar fotos',
-      `Se ${idsABorrar.length === 1 ? 'borrará' : 'borrarán'} ${idsABorrar.length} ${idsABorrar.length === 1 ? 'foto' : 'fotos'} de este momento. ${TEXTO_RECUPERACION}`,
+      T.seleccion.borrarFotosTitulo,
+      T.seleccion.borrarFotosTexto(idsABorrar.length, TEXTO_RECUPERACION),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: T.comun.cancelar, style: 'cancel' },
         {
-          text: 'Borrar',
+          text: T.comun.borrar,
           style: 'destructive',
           onPress: async () => {
             setBorrando(true);
@@ -308,8 +310,8 @@ export default function SeleccionScreen() {
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsABorrar);
               if (!borradoOk) {
                 Alert.alert(
-                  'No se ha borrado nada',
-                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                  T.comun.borrarTodo.nadaBorradoTitulo,
+                  T.comun.borrarTodo.nadaBorradoTexto
                 );
                 return;
               }
@@ -317,16 +319,16 @@ export default function SeleccionScreen() {
               await sumarEleccion(tamanoLiberado);
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
-                '¡Listo!',
+                T.comun.listo,
                 tamanoTexto
-                  ? `Has liberado ${tamanoTexto} de espacio.`
-                  : 'Se han borrado las fotos que no elegiste.',
-                [{ text: 'Volver a mis fotos', onPress: () => router.back() }]
+                  ? T.seleccion.hasLiberado(tamanoTexto)
+                  : T.seleccion.borradasNoElegidas,
+                [{ text: T.comun.volverAMisFotos, onPress: () => router.back() }]
               );
             } catch {
               Alert.alert(
-                'No hemos podido eliminar las fotos.',
-                'Revisa los permisos e inténtalo de nuevo.'
+                T.comun.borrarTodo.errorTitulo,
+                T.comun.borrarTodo.errorTexto
               );
             } finally {
               setBorrando(false);
@@ -351,12 +353,12 @@ export default function SeleccionScreen() {
     const todasLasFotos = [...candidatasOriginales, ...descartadasPorNitidez];
     const idsTodo = todasLasFotos.map((f) => f.id);
     Alert.alert(
-      'Borrar todas las fotos',
-      `Se ${idsTodo.length === 1 ? 'borrará' : 'borrarán'} ${idsTodo.length} ${idsTodo.length === 1 ? 'foto' : 'fotos'} de este momento, incluida la que elegiste. ${TEXTO_RECUPERACION}`,
+      T.comun.borrarTodo.titulo,
+      T.seleccion.borrarTodoTexto(idsTodo.length, TEXTO_RECUPERACION),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: T.comun.cancelar, style: 'cancel' },
         {
-          text: 'Borrar todas',
+          text: T.comun.borrarTodo.boton,
           style: 'destructive',
           onPress: async () => {
             setBorrando(true);
@@ -365,23 +367,23 @@ export default function SeleccionScreen() {
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
               if (!borradoOk) {
                 Alert.alert(
-                  'No se ha borrado nada',
-                  'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.'
+                  T.comun.borrarTodo.nadaBorradoTitulo,
+                  T.comun.borrarTodo.nadaBorradoTexto
                 );
                 return;
               }
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
-                '¡Listo!',
+                T.comun.listo,
                 tamanoTexto
-                  ? `Has liberado ${tamanoTexto} de espacio.`
-                  : 'Se han borrado todas las fotos de este momento.',
-                [{ text: 'Volver a mis fotos', onPress: () => router.back() }]
+                  ? T.seleccion.hasLiberado(tamanoTexto)
+                  : T.seleccion.borradasTodas,
+                [{ text: T.comun.volverAMisFotos, onPress: () => router.back() }]
               );
             } catch {
               Alert.alert(
-                'No hemos podido eliminar las fotos.',
-                'Revisa los permisos e inténtalo de nuevo.'
+                T.comun.borrarTodo.errorTitulo,
+                T.comun.borrarTodo.errorTexto
               );
             } finally {
               setBorrando(false);
@@ -405,12 +407,10 @@ export default function SeleccionScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.avisoContenedor}>
-          <Text style={styles.titulo}>No encontramos este momento</Text>
-          <Text style={styles.pista}>
-            Puede que la app se haya reiniciado. Vuelve a la lista y ábrela de nuevo.
-          </Text>
+          <Text style={styles.titulo}>{T.seleccion.noEncontrado}</Text>
+          <Text style={styles.pista}>{T.seleccion.noEncontradoTexto}</Text>
           <BouncyPressable style={styles.botonAccion} onPress={() => router.replace('/')}>
-            <Text style={styles.textoBotonAccion}>Volver a mis fotos</Text>
+            <Text style={styles.textoBotonAccion}>{T.comun.volverAMisFotos}</Text>
           </BouncyPressable>
         </View>
       </View>
@@ -421,7 +421,7 @@ export default function SeleccionScreen() {
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContenido}>
-          <Text style={styles.titulo}>¡Esta es la elegida! ✨</Text>
+          <Text style={styles.titulo}>{T.seleccion.laElegida}</Text>
           <Pressable onPress={() => setMostrarEtiquetaModal(true)} hitSlop={6}>
             <Text style={styles.etiquetaPill}>
               {grupo.creationTime ? formatearEtiqueta(grupoId!, grupo.creationTime) : ''} ✏️
@@ -437,21 +437,21 @@ export default function SeleccionScreen() {
           </Pressable>
 
           {guardadaEnAlbum && (
-            <Text style={styles.avisoGuardada}>✓ Guardada en tu álbum Fondly</Text>
+            <Text style={styles.avisoGuardada}>{T.seleccion.guardadaEnAlbum}</Text>
           )}
 
           {fotoMejorada && (
             <View style={styles.previewContenedor}>
-              <Text style={styles.previewEtiqueta}>Versión mejorada</Text>
+              <Text style={styles.previewEtiqueta}>{T.seleccion.versionMejorada}</Text>
               <Pressable onPress={() => setFotoAmpliada(fotoMejorada.uri)}>
                 <Image source={{ uri: fotoMejorada.uri }} style={styles.previewImagen} />
               </Pressable>
               <View style={styles.previewAcciones}>
                 <BouncyPressable style={styles.botonGuardarMejora} onPress={guardarMejora}>
-                  <Text style={styles.textoBotonAccion}>Guardar en el carrete</Text>
+                  <Text style={styles.textoBotonAccion}>{T.seleccion.guardarEnCarrete}</Text>
                 </BouncyPressable>
                 <Pressable style={styles.botonDescartarMejora} onPress={descartarMejora}>
-                  <Text style={styles.textoBotonVolver}>Descartar</Text>
+                  <Text style={styles.textoBotonVolver}>{T.comun.descartar}</Text>
                 </Pressable>
               </View>
             </View>
@@ -459,7 +459,7 @@ export default function SeleccionScreen() {
 
           <View style={styles.accionesContenedor}>
             <BouncyPressable style={styles.botonAccion} onPress={compartir}>
-              <Text style={styles.textoBotonAccion}>Compartir / Publicar</Text>
+              <Text style={styles.textoBotonAccion}>{T.seleccion.compartir}</Text>
             </BouncyPressable>
 
             <BouncyPressable
@@ -468,11 +468,11 @@ export default function SeleccionScreen() {
               disabled={mejorando}
             >
               <Text style={styles.textoBotonBrillo}>
-                {mejorando ? 'Mejorando la luz y el contraste...' : 'Dar un toque de brillo ✨'}
+                {mejorando ? T.seleccion.mejorando : T.seleccion.darBrillo}
               </Text>
             </BouncyPressable>
             {mejorando && (
-              <Text style={styles.notaMejora}>Estamos preparando una versión mejorada.</Text>
+              <Text style={styles.notaMejora}>{T.seleccion.preparandoMejora}</Text>
             )}
 
             <BouncyPressable
@@ -480,9 +480,7 @@ export default function SeleccionScreen() {
               onPress={borrarGrupoCompleto}
               disabled={borrando}
             >
-              <Text style={styles.textoDescartarTodoBoton}>
-                No quiero ninguna, borrar también esta foto
-              </Text>
+              <Text style={styles.textoDescartarTodoBoton}>{T.seleccion.ningunaBorrarTambien}</Text>
             </BouncyPressable>
           </View>
 
@@ -490,23 +488,21 @@ export default function SeleccionScreen() {
             <View style={styles.extrasContenedor}>
               <Text style={styles.contadorEspacio}>
                 {tamanoALiberar === null
-                  ? 'Calculando espacio a liberar...'
+                  ? T.seleccion.calculandoEspacio
                   : tamanoALiberar > 0
-                  ? `🗑 Vas a liberar ${formatearTamano(tamanoALiberar)}`
-                  : 'No vas a liberar espacio (te quedas con todas)'}
+                  ? T.seleccion.vasALiberar(formatearTamano(tamanoALiberar))
+                  : T.seleccion.sinEspacioALiberar}
               </Text>
 
               {resto.length >= 1 && (
                 <>
                   <Text style={styles.previewEtiqueta}>
                     {resto.length === 1
-                      ? 'Esta es la que se borrará'
-                      : '¿Alguna más de este momento?'}
+                      ? T.seleccion.seBorraraEsta
+                      : T.seleccion.algunaMas}
                   </Text>
                   {resto.length >= 2 && (
-                    <Text style={styles.extrasSubtitulo}>
-                      Elige las que quieras conservar además de la elegida.
-                    </Text>
+                    <Text style={styles.extrasSubtitulo}>{T.seleccion.eligeConservar}</Text>
                   )}
                   <Text
                     style={[
@@ -514,7 +510,7 @@ export default function SeleccionScreen() {
                       !coachmarkVisto('extras_lupa') && styles.pistaZoomExtrasDestacada,
                     ]}
                   >
-                    Toca 🔍 en cada foto para ampliarla antes de decidir
+                    {T.seleccion.pistaLupa}
                   </Text>
 
                   <View style={styles.extrasFilaMiniaturas}>
@@ -532,7 +528,7 @@ export default function SeleccionScreen() {
                             <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
                             {esBorrosa && (
                               <View style={styles.miniaturaExtraBorrosa}>
-                                <Text style={styles.miniaturaExtraBorrosaTexto}>Borrosa</Text>
+                                <Text style={styles.miniaturaExtraBorrosaTexto}>{T.seleccion.borrosa}</Text>
                               </View>
                             )}
 
@@ -567,8 +563,8 @@ export default function SeleccionScreen() {
                 >
                   <Text style={styles.textoBotonAccion}>
                     {borrando
-                      ? 'Eliminando fotos...'
-                      : `Guardar ${extrasSeleccionadas.length} más y borrar el resto`}
+                      ? T.seleccion.eliminando
+                      : T.seleccion.guardarExtras(extrasSeleccionadas.length)}
                   </Text>
                 </BouncyPressable>
               )}
@@ -579,18 +575,16 @@ export default function SeleccionScreen() {
                 disabled={borrando}
               >
                 <Text style={styles.textoBotonPeligro}>
-                  {borrando ? 'Eliminando fotos...' : `Borrar las demás (${resto.length})`}
+                  {borrando ? T.seleccion.eliminando : T.seleccion.borrarLasDemas(resto.length)}
                 </Text>
               </BouncyPressable>
 
-              <Text style={styles.textoSeguridad}>
-                Podrás recuperarlas 30 días desde Fotos
-              </Text>
+              <Text style={styles.textoSeguridad}>{T.seleccion.recuperar30Dias}</Text>
             </View>
           )}
 
           <Pressable style={styles.botonVolver} onPress={() => router.back()}>
-            <Text style={styles.textoBotonVolver}>Volver a mis fotos</Text>
+            <Text style={styles.textoBotonVolver}>{T.comun.volverAMisFotos}</Text>
           </Pressable>
         </ScrollView>
         <ZoomablePhotoModal
@@ -617,7 +611,7 @@ export default function SeleccionScreen() {
   if (!pareja) {
     return (
       <View style={styles.container}>
-        <Text style={styles.titulo}>Un momento...</Text>
+        <Text style={styles.titulo}>{T.seleccion.cargando}</Text>
       </View>
     );
   }
@@ -641,15 +635,15 @@ export default function SeleccionScreen() {
             />
           ))}
         </View>
-        <Text style={styles.titulo}>¿Cuál prefieres?</Text>
-        <Text style={styles.pista}>Elige la que mejor representa el momento.</Text>
+        <Text style={styles.titulo}>{T.seleccion.cualPrefieres}</Text>
+        <Text style={styles.pista}>{T.seleccion.pista}</Text>
         <Text
           style={[
             styles.pistaZoom,
             !coachmarkVisto('torneo_doble_tap') && styles.pistaZoomDestacada,
           ]}
         >
-          Toca dos veces para elegir · toca una vez para ampliar
+          {T.seleccion.pistaGestos}
         </Text>
 
         <View style={styles.duelo}>
@@ -670,7 +664,7 @@ export default function SeleccionScreen() {
           </View>
 
           <View style={styles.vsPill}>
-            <Text style={styles.vsTexto}>vs</Text>
+            <Text style={styles.vsTexto}>{T.seleccion.vs}</Text>
           </View>
 
           <View style={styles.opcion}>

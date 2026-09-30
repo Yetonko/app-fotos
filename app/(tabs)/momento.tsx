@@ -119,7 +119,7 @@ export default function MomentoScreen() {
         router.back();
       }
     } catch {
-      Alert.alert(T.momento.errorCompartir, T.comun.intentaloDeNuevo);
+      Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
     } finally {
       setPublicando(false);
     }

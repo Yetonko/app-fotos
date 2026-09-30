@@ -6,6 +6,7 @@ import { Image } from 'expo-image';
 
 import { inicializarMomentos, obtenerMomentos } from '@/lib/momentos';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
+import { T } from '@/lib/i18n';
 
 const COLORES = {
   fondo: '#F5EFE3',
@@ -61,11 +62,11 @@ export default function AlbumScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.botonVolverTexto}>‹ Volver</Text>
+        <Text style={styles.botonVolverTexto}>{T.comun.volver}</Text>
       </Pressable>
-      <Text style={styles.titulo}>{nombre ?? 'Álbum'}</Text>
+      <Text style={styles.titulo}>{nombre ?? T.album.tituloPorDefecto}</Text>
       <Text style={styles.subtitulo}>
-        {fotos.length} {fotos.length === 1 ? 'foto elegida' : 'fotos elegidas'}
+        {T.albumes.fotosElegidas(fotos.length)}
       </Text>
 
       <FlatList

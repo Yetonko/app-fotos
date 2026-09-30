@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { T } from '@/lib/i18n';
 
 const COLORES = {
   fondo: '#F5EFE3',
@@ -50,12 +51,12 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
       <View style={styles.fondo}>
         <View style={styles.tarjeta}>
           <Text style={styles.etiquetaFecha}>{etiquetaFecha}</Text>
-          <Text style={styles.titulo}>Nombre de la actividad</Text>
+          <Text style={styles.titulo}>{T.etiqueta.titulo}</Text>
           <TextInput
             style={styles.input}
             value={texto}
             onChangeText={setTexto}
-            placeholder="Ej. Benasque ski"
+            placeholder={T.etiqueta.ejemplo}
             placeholderTextColor={COLORES.textoSecundario}
             autoFocus
             returnKeyType="done"
@@ -63,17 +64,17 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
           />
 
           <Pressable style={styles.botonGuardar} onPress={guardar}>
-            <Text style={styles.textoBotonGuardar}>Guardar</Text>
+            <Text style={styles.textoBotonGuardar}>{T.etiqueta.guardar}</Text>
           </Pressable>
 
           {valorInicial.length > 0 && (
             <Pressable style={styles.botonQuitar} onPress={quitar}>
-              <Text style={styles.textoBotonQuitar}>Quitar etiqueta</Text>
+              <Text style={styles.textoBotonQuitar}>{T.etiqueta.quitar}</Text>
             </Pressable>
           )}
 
           <Pressable style={styles.botonCancelar} onPress={onCerrar}>
-            <Text style={styles.textoBotonCancelar}>Cancelar</Text>
+            <Text style={styles.textoBotonCancelar}>{T.comun.cancelar}</Text>
           </Pressable>
         </View>
       </View>
