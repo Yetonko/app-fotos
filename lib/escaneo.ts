@@ -1,4 +1,4 @@
-import { agruparPorTiempo, GrupoFotos } from './agrupar';
+import { agruparPorTiempo, partirPorParecido, GrupoFotos } from './agrupar';
 import { calcularHash, distanciaHamming } from './hash';
 
 export type FotoConUri = { id: string; uri: string };
@@ -47,28 +47,42 @@ export async function detectarRafagas(
     // imágenes en paralelo.
     const hashes = await Promise.all(grupo.fotos.map((foto) => calcularHash(foto.id)));
 
-    const distancias: number[] = [];
+    const distanciasRafaga: number[] = [];
     for (let i = 1; i < hashes.length; i++) {
-      distancias.push(distanciaHamming(hashes[i - 1], hashes[i]));
+      distanciasRafaga.push(distanciaHamming(hashes[i - 1], hashes[i]));
+    }
+    if (__DEV__) {
+      // Solo en la app de desarrollo: ayuda a ajustar UMBRAL_PARECIDAS
+      // viendo en Terminal las distancias reales de tus fotos.
+      console.log(`[escaneo] ráfaga de ${hashes.length} fotos, distancias: ${distanciasRafaga.join(', ')}`);
     }
 
-    const fotosConUri: FotoConUri[] = grupo.fotos.map((foto) => ({
-      id: foto.id,
-      uri: uriPorId.get(foto.id) ?? '',
-    }));
+    // Cercanía en el tiempo no basta: dos fotos tomadas con segundos de
+    // diferencia pueden ser de cosas distintas (un cañón y una estatua).
+    // Partimos la ráfaga donde cambia la escena y solo nos quedamos con
+    // los tramos de 2 o más fotos parecidas.
+    const tramos = partirPorParecido(distanciasRafaga).filter((tramo) => tramo.length > 1);
 
-    // El id de la primera foto de la ráfaga (ordenadas por fecha) es un
-    // identificador estable del grupo: a diferencia del índice en el
-    // array, no cambia si la lista se recalcula en otra apertura de la
-    // pantalla. Solo debería colisionar si dos ráfagas empiezan por la
-    // misma foto exacta, lo cual no ocurre.
-    const grupoId = grupo.fotos[0].id;
+    for (const tramo of tramos) {
+      const fotosTramo = tramo.map((i) => grupo.fotos[i]);
+      const distancias = tramo.slice(1).map((i) => distanciasRafaga[i - 1]);
 
-    const grupoDetectado: GrupoDetectado = { ...grupo, distancias, fotosConUri, grupoId };
+      const fotosConUri: FotoConUri[] = fotosTramo.map((foto) => ({
+        id: foto.id,
+        uri: uriPorId.get(foto.id) ?? '',
+      }));
 
-    await opciones?.onGrupo?.(grupoDetectado);
+      // El id de la primera foto del grupo (ordenadas por fecha) es un
+      // identificador estable: a diferencia del índice en el array, no
+      // cambia si la lista se recalcula en otra apertura de la pantalla.
+      const grupoId = fotosTramo[0].id;
 
-    resultado.push(grupoDetectado);
+      const grupoDetectado: GrupoDetectado = { fotos: fotosTramo, distancias, fotosConUri, grupoId };
+
+      await opciones?.onGrupo?.(grupoDetectado);
+
+      resultado.push(grupoDetectado);
+    }
   }
 
   return resultado;
