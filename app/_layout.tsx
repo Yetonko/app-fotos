@@ -39,6 +39,7 @@ export default function RootLayout() {
             name="album"
             options={{ headerShown: false, animation: 'fade' }}
           />
+          <Stack.Screen name="paywall" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
