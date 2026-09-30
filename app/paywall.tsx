@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Alert, View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Purchases from 'react-native-purchases';
@@ -27,6 +28,21 @@ export default function Paywall() {
   const mbLiberados = Number(params.mbLiberados ?? 0);
   const grupoId = params.grupoId ?? '';
   const esBloqueo = modo === 'bloqueado';
+
+  // Precios reales de la tienda (moneda y formato del pais de la usuaria).
+  // Si no cargan, se mantiene el texto de siempre para que nunca quede vacio.
+  const [precioSuscripcion, setPrecioSuscripcion] = useState('3,99 €');
+  const [precioPack, setPrecioPack] = useState('2,99 €');
+  useEffect(() => {
+    let activo = true;
+    Purchases.getProducts([ID_SUSCRIPCION])
+      .then((ps) => { if (activo && ps[0]?.priceString) setPrecioSuscripcion(ps[0].priceString); })
+      .catch(() => {});
+    Purchases.getProducts([ID_PACK])
+      .then((ps) => { if (activo && ps[0]?.priceString) setPrecioPack(ps[0].priceString); })
+      .catch(() => {});
+    return () => { activo = false; };
+  }, []);
 
   // ── Compras reales vía RevenueCat ──
   async function comprarSuscripcion() {
@@ -128,7 +144,7 @@ export default function Paywall() {
           <Text style={estilos.textoEtiqueta}>Popular</Text>
         </View>
         <Text style={estilos.tituloOpcion}>Ilimitado</Text>
-        <Text style={estilos.precio}>3,99 €/mes</Text>
+        <Text style={estilos.precio}>{precioSuscripcion}/mes</Text>
         <Text style={estilos.descripcionOpcion}>Elige sin límites, todos los meses</Text>
         <Pressable style={estilos.botonPrincipal} onPress={comprarSuscripcion}>
           <Text style={estilos.textoBotonPrincipal}>Suscribirme</Text>
@@ -137,7 +153,7 @@ export default function Paywall() {
 
       <View style={estilos.tarjetaSecundaria}>
         <Text style={estilos.tituloOpcion}>Pack de 50</Text>
-        <Text style={estilos.precio}>2,99 €</Text>
+        <Text style={estilos.precio}>{precioPack}</Text>
         <Text style={estilos.descripcionOpcion}>50 selecciones extra, sin caducidad</Text>
         <Pressable style={estilos.botonSecundario} onPress={comprarPack}>
           <Text style={estilos.textoBotonSecundario}>Comprar pack</Text>

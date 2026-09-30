@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
 import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
+import { formatearNumero } from '@/lib/idioma';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
@@ -39,7 +40,7 @@ const AVISO_MUCHAS_FOTOS = 800;
 type PeriodoConConteo = Periodo & { totalFotos: number; portadaUri: string | null };
 
 function formatearConteo(n: number): string {
-  const numero = n.toLocaleString('es-ES');
+  const numero = formatearNumero(n);
   return `${numero} ${n === 1 ? 'foto' : 'fotos'}`;
 }
 

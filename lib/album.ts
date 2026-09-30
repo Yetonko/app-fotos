@@ -2,7 +2,10 @@ import * as MediaLibrary from 'expo-media-library';
 
 // Nombre del álbum propio donde se guardan las fotos elegidas, para que el
 // usuario las tenga juntas y listas para publicar desde la app Fotos.
-const NOMBRE_ALBUM = 'Fondly · Favoritas';
+const NOMBRE_ALBUM = 'Fondly';
+// Nombre usado hasta sept 2026. Si ya existe, se sigue usando ese album para
+// no crear un duplicado en el carrete de quien ya tenia la app.
+const NOMBRE_ALBUM_ANTIGUO = 'Fondly · Favoritas';
 
 // Guarda un asset (la ganadora) en el álbum de favoritas, creándolo la
 // primera vez. Devuelve true si se guardó, false si algo falló.
@@ -12,7 +15,9 @@ const NOMBRE_ALBUM = 'Fondly · Favoritas';
 // podría sacarlo del flujo principal, lo que confundiría al usuario.
 export async function guardarEnAlbumFavoritas(assetId: string): Promise<boolean> {
   try {
-    const existente = await MediaLibrary.getAlbumAsync(NOMBRE_ALBUM);
+    const existente =
+      (await MediaLibrary.getAlbumAsync(NOMBRE_ALBUM)) ??
+      (await MediaLibrary.getAlbumAsync(NOMBRE_ALBUM_ANTIGUO));
     if (existente) {
       return await MediaLibrary.addAssetsToAlbumAsync([assetId], existente, true);
     }

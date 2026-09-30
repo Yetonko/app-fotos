@@ -104,7 +104,7 @@ export default function MomentoScreen() {
         }
         Alert.alert(
           '¡Tus fotos están listas!',
-          `Hemos guardado tus ${ordenadas.length} fotos juntas en tu álbum "Fondly · Favoritas". Ábrelo desde Instagram para publicarlas como carrusel.`,
+          `Hemos guardado tus ${ordenadas.length} fotos juntas en tu álbum Fondly. Ábrelo desde Instagram para publicarlas como carrusel.`,
           [{ text: 'Entendido' }]
         );
         const info = await MediaLibrary.getAssetInfoAsync(ordenadas[0].id);

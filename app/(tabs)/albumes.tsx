@@ -20,10 +20,7 @@ const COLORES = {
   textoSecundario: '#8C8171',
 };
 
-const MESES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
+import { nombreMesLargo } from '@/lib/idioma';
 
 // Clave 'YYYY-MM' (para agrupar y ordenar) y nombre visible 'Agosto 2026'
 // a partir de un creationTime en milisegundos.
@@ -33,7 +30,7 @@ function claveMes(creationTime: number): string {
 }
 function nombreMes(creationTime: number): string {
   const f = new Date(creationTime);
-  return `${MESES[f.getMonth()]} ${f.getFullYear()}`;
+  return `${nombreMesLargo(f.getMonth())} ${f.getFullYear()}`;
 }
 
 type Album = {

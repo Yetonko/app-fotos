@@ -1,4 +1,5 @@
 import * as MediaLibrary from 'expo-media-library';
+import { nombreMesCorto } from './idioma';
 
 // Un periodo es un trimestre natural: Ene-Mar, Abr-Jun, Jul-Sep u Oct-Dic de
 // un año concreto. Se usan trimestres fijos (no una ventana móvil desde
@@ -25,15 +26,9 @@ function limitesTrimestre(anio: number, trimestre: Trimestre): { desde: number; 
   return { desde, hasta };
 }
 
-const ETIQUETAS_TRIMESTRE: Record<Trimestre, string> = {
-  1: 'Ene - Mar',
-  2: 'Abr - Jun',
-  3: 'Jul - Sep',
-  4: 'Oct - Dic',
-};
-
 function etiquetaTrimestre(anio: number, trimestre: Trimestre): string {
-  return `${ETIQUETAS_TRIMESTRE[trimestre]} ${anio}`;
+  const inicio = MESES_INICIO_TRIMESTRE[trimestre];
+  return `${nombreMesCorto(inicio)} - ${nombreMesCorto(inicio + 2)} ${anio}`;
 }
 
 function trimestreDe(fecha: number): { anio: number; trimestre: Trimestre } {

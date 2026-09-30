@@ -2,10 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CLAVE_ETIQUETAS = 'grupos_etiquetas';
 
-const MESES_ABREV = [
-  'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-  'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
-];
+import { nombreMesCorto } from './idioma';
 
 // Texto que se muestra cuando el usuario todavia no ha puesto nombre a la
 // actividad de este grupo. Se muestra igual que un nombre real (tocable,
@@ -65,7 +62,7 @@ export async function guardarNombreActividad(grupoId: string, nombre: string): P
 export function formatearFecha(creationTime: number): string {
   const fecha = new Date(creationTime);
   const anio = fecha.getFullYear();
-  const mes = MESES_ABREV[fecha.getMonth()];
+  const mes = nombreMesCorto(fecha.getMonth());
   return `${anio} ${mes}`;
 }
 
