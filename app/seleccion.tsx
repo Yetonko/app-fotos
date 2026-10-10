@@ -30,7 +30,7 @@ import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { marcarRevisadoSiProcede } from '@/lib/revisados';
 import { registrarMomento } from '@/lib/momentos';
 import { guardarEnAlbumFavoritas } from '@/lib/album';
-import { sumarEleccion } from '@/lib/progreso';
+import { sumarEleccion, sumarLiberado } from '@/lib/progreso';
 import { inicializarCoachmarks, coachmarkVisto, marcarCoachmarkVisto } from '@/lib/coachmarks';
 import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formatearEtiqueta } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
@@ -42,7 +42,6 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
-import { sumarLiberado } from '@/lib/progreso';
 
 // La papelera de 30 días de "Eliminados recientemente" es un comportamiento
 // verificado de iOS. En Android varía según el fabricante y la app de
