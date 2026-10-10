@@ -41,37 +41,8 @@ import { BotonVolver } from '@/components/boton-volver';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
-import { formatearDecimal } from '@/lib/idioma';
-
-
-// Suma el tamaño en disco de un conjunto de fotos, para poder decirle al
-// usuario cuánto espacio ha liberado al borrar. Si alguna foto falla al
-// consultarse, simplemente no cuenta para el total en vez de romper todo
-// el cálculo.
-async function calcularTamanoTotal(fotos: FotoCandidata[]): Promise<number> {
-  let total = 0;
-  for (const foto of fotos) {
-    try {
-      const info = await MediaLibrary.getAssetInfoAsync(foto.id);
-      const uriLocal = info.localUri ?? info.uri;
-      const datos = await FileSystem.getInfoAsync(uriLocal, { size: true });
-      if (datos.exists && typeof datos.size === 'number') {
-        total += datos.size;
-      }
-    } catch {
-      // Sin tamaño disponible para esta foto: no se cuenta, pero seguimos.
-    }
-  }
-  return total;
-}
-
-function formatearTamano(bytes: number): string {
-  if (bytes <= 0) return '';
-  if (bytes >= 1024 * 1024) {
-    return `${formatearDecimal(bytes / (1024 * 1024), 1)} MB`;
-  }
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
+import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
+import { sumarLiberado } from '@/lib/progreso';
 
 // La papelera de 30 días de "Eliminados recientemente" es un comportamiento
 // verificado de iOS. En Android varía según el fabricante y la app de
@@ -222,7 +193,7 @@ export default function SeleccionScreen() {
 
     let cancelado = false;
     setTamanoALiberar(null);
-    calcularTamanoTotal(fotosABorrarAhora).then((total) => {
+    calcularTamanoTotal(fotosABorrarAhora.map((f) => f.id)).then((total) => {
       if (!cancelado) {
         setTamanoALiberar(total);
       }
@@ -317,7 +288,7 @@ export default function SeleccionScreen() {
             setBorrando(true);
             try {
               const fotosABorrar = resto.filter((f) => idsABorrar.includes(f.id));
-              const tamanoLiberado = await calcularTamanoTotal(fotosABorrar);
+              const tamanoLiberado = await calcularTamanoTotal(fotosABorrar.map((f) => f.id));
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsABorrar);
               if (!borradoOk) {
                 Alert.alert(
@@ -372,7 +343,7 @@ export default function SeleccionScreen() {
           onPress: async () => {
             setBorrando(true);
             try {
-              const tamanoLiberado = await calcularTamanoTotal(todasLasFotos);
+              const tamanoLiberado = await calcularTamanoTotal(idsTodo);
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
               if (!borradoOk) {
                 Alert.alert(
@@ -382,6 +353,7 @@ export default function SeleccionScreen() {
                 return;
               }
               setBorradoHecho(true);
+              await sumarLiberado(tamanoLiberado).catch(() => {});
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
                 T.comun.listo,

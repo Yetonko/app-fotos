@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CLAVE_PROGRESO = 'progreso_diario';
+const CLAVE_LIBERADO_TOTAL = 'bytes_liberados_total';
 
 // El marcador que se muestra en la Home: cuántas fotos ha elegido el usuario
 // hoy y cuántos bytes ha liberado hoy. Es deliberadamente un contador de
@@ -69,7 +70,32 @@ async function persistir(): Promise<void> {
 // (los bytes pueden ser 0 si el usuario no borró nada, y sigue contando la
 // elección). Si el marcador en cache era de ayer, se reinicia a hoy antes
 // de sumar, para que nunca se arrastre el número de un día a otro.
+// Total de espacio liberado con Fondly desde siempre (todas las pantallas
+// que borran). Solo sube; se enseña como recompensa en Épocas.
+let liberadoTotal: number | null = null;
+
+export async function obtenerLiberadoTotal(): Promise<number> {
+  if (liberadoTotal !== null) return liberadoTotal;
+  try {
+    liberadoTotal = Number(await AsyncStorage.getItem(CLAVE_LIBERADO_TOTAL)) || 0;
+  } catch {
+    liberadoTotal = 0;
+  }
+  return liberadoTotal;
+}
+
+export async function sumarLiberado(bytes: number): Promise<void> {
+  if (bytes <= 0) return;
+  liberadoTotal = (await obtenerLiberadoTotal()) + bytes;
+  try {
+    await AsyncStorage.setItem(CLAVE_LIBERADO_TOTAL, String(liberadoTotal));
+  } catch {
+    // Se mantiene en memoria esta sesión.
+  }
+}
+
 export async function sumarEleccion(bytesLiberados: number): Promise<void> {
+  await sumarLiberado(bytesLiberados);
   const actual = await cargarCache();
   const base = actual.fecha === hoyISO() ? actual : vacioDeHoy();
   cache = {

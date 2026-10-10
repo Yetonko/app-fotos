@@ -21,8 +21,11 @@ import {
   UMBRAL_DIVIDIR_EN_MESES,
 } from '@/lib/periodos';
 import { COLORES } from '@/constants/estilo';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { T } from '@/lib/i18n';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
+import { obtenerLiberadoTotal } from '@/lib/progreso';
+import { estimarTamanoRango, formatearTamano } from '@/lib/tamano';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
 // mismo patrón que ya usan esas pantallas.
@@ -49,10 +52,15 @@ export default function ExploreScreen() {
   // Se incrementa al volver de periodo.tsx, para reflejar los periodos que
   // se hayan marcado como revisados mientras tanto.
   const [tick, setTick] = useState(0);
+  // Recompensa visible: todo lo liberado con Fondly hasta ahora.
+  const [liberado, setLiberado] = useState(0);
+  // Cuánto ocupa (aprox.) cada época, por id. Se va rellenando poco a poco.
+  const [tamanos, setTamanos] = useState<Record<string, number | null>>({});
 
   useFocusEffect(
     useCallback(() => {
       setTick((t) => t + 1);
+      obtenerLiberadoTotal().then(setLiberado);
     }, [])
   );
 
@@ -113,6 +121,24 @@ export default function ExploreScreen() {
     })();
   }, []);
 
+  // Estima el tamaño de cada época de una en una, después de pintar la lista,
+  // para que la pantalla aparezca enseguida y los "unos X GB" vayan llegando.
+  useEffect(() => {
+    if (periodos.length === 0) return;
+    let cancelado = false;
+    (async () => {
+      for (const p of periodos) {
+        if (cancelado) return;
+        const t = await estimarTamanoRango(p.id, p.desde, p.hasta, p.totalFotos);
+        if (cancelado) return;
+        setTamanos((actual) => ({ ...actual, [p.id]: t }));
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [periodos]);
+
   const tocarPeriodo = (periodo: PeriodoConConteo) => {
     router.push({
       pathname: '/periodo',
@@ -169,9 +195,20 @@ export default function ExploreScreen() {
           data={periodosOrdenados}
           keyExtractor={(item) => item.id}
           style={styles.lista}
-          extraData={tick}
+          extraData={[tick, tamanos]}
+          ListHeaderComponent={
+            liberado > 0 ? (
+              <View style={styles.liberadoCaja}>
+                <IconSymbol name="checkmark" size={26} color={COLORES.acentoOscuro} />
+                <Text style={styles.liberadoTexto}>
+                  {T.periodos.hasLiberado(formatearTamano(liberado))}
+                </Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => {
             const revisado = estaRevisado(item);
+            const tamano = tamanos[item.id];
             return (
               <BouncyPressable
                 style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}
@@ -189,7 +226,14 @@ export default function ExploreScreen() {
                     {item.etiqueta}
                     {revisado ? T.comun.revisado : ''}
                   </Text>
-                  <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
+                  <Text style={styles.tarjetaConteo}>
+                    {tamano
+                      ? T.periodos.conteoConTamano(
+                          formatearConteo(item.totalFotos),
+                          formatearTamano(tamano)
+                        )
+                      : formatearConteo(item.totalFotos)}
+                  </Text>
                   {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
                     <Text style={styles.tarjetaAviso}>{T.periodos.avisoMuchasFotos}</Text>
                   )}
@@ -204,6 +248,22 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
+  liberadoCaja: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORES.acentoSuave,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  liberadoTexto: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORES.acentoOscuro,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORES.fondo,
@@ -217,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   subtitulo: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORES.textoSecundario,
     marginBottom: 20,
   },

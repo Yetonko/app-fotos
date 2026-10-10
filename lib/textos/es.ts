@@ -99,7 +99,10 @@ export const es = {
     tituloPorDefecto: 'Periodo',
     vacio: 'No hemos encontrado fotos casi iguales en este periodo.',
     tituloTarjeta: (numero: number, n: number) => `Momento ${numero} · ${n} fotos casi iguales`,
-    ningunaDeEstas: '🗑 No quiero ninguna de estas',
+    tituloConNombre: (nombre: string, n: number) => `${nombre} · ${n} fotos`,
+    ponleNombre: 'Ponle nombre',
+    cambiarNombre: 'Cambiar nombre',
+    borrarMomento: (n: number) => `Borrar las ${n} fotos de este momento`,
     frasesEscaneo: [
       'Mirando tus fotos con cariño…',
       'Agrupando lo que va junto…',
@@ -181,7 +184,8 @@ export const es = {
 
   // Ventana para poner nombre a una actividad
   etiqueta: {
-    titulo: 'Nombre de la actividad',
+    titulo: 'Ponle nombre a este momento',
+    explicacion: 'Así lo reconocerás de un vistazo cuando vuelvas.',
     ejemplo: 'Ej. Benasque ski',
     guardar: 'Guardar',
     quitar: 'Quitar etiqueta',
@@ -251,6 +255,8 @@ export const es = {
     subtitulo: 'Haz sitio repasando tus fotos antiguas',
     cargando: 'Revisando tu carrete por periodos...',
     vacio: 'No hemos encontrado fotos en tu carrete todavía.',
+    hasLiberado: (tamano: string) => `Has liberado ${tamano} con Fondly`,
+    conteoConTamano: (fotos: string, tamano: string) => `${fotos} · unos ${tamano}`,
     avisoMuchasFotos: 'Son bastantes fotos, puede tardar un poco más',
     errorPermisos: (dispositivo: string) =>
       `No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${dispositivo}.`,

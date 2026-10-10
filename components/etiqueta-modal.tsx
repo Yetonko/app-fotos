@@ -45,6 +45,7 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
         <View style={styles.tarjeta}>
           <Text style={styles.etiquetaFecha}>{etiquetaFecha}</Text>
           <Text style={styles.titulo}>{T.etiqueta.titulo}</Text>
+          <Text style={styles.explicacion}>{T.etiqueta.explicacion}</Text>
           <TextInput
             style={styles.input}
             value={texto}
@@ -76,6 +77,11 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
 }
 
 const styles = StyleSheet.create({
+  explicacion: {
+    fontSize: 15,
+    color: COLORES.textoSecundario,
+    marginBottom: 12,
+  },
   fondo: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

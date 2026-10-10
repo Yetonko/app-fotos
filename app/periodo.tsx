@@ -12,7 +12,6 @@ import {
   inicializarEtiquetas,
   obtenerNombreActividad,
   guardarNombreActividad,
-  formatearEtiqueta,
   formatearFecha,
 } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
@@ -21,6 +20,8 @@ import { BotonVolver } from '@/components/boton-volver';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
+import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
+import { sumarLiberado } from '@/lib/progreso';
 
 
 type CandidataConUri = { id: string; uri: string };
@@ -175,6 +176,9 @@ export default function PeriodoScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Se mide antes de borrar (después ya no se puede) para poder
+              // decirle cuánto espacio ha ganado.
+              const tamanoLiberado = await calcularTamanoTotal(idsTodo);
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
               if (!borradoOk) {
                 Alert.alert(
@@ -184,6 +188,12 @@ export default function PeriodoScreen() {
                 return;
               }
               setGrupos((actuales) => actuales.filter((g) => g.grupoId !== item.grupoId));
+              await sumarLiberado(tamanoLiberado).catch(() => {});
+              const tamanoTexto = formatearTamano(tamanoLiberado);
+              Alert.alert(
+                T.comun.listo,
+                tamanoTexto ? T.seleccion.hasLiberado(tamanoTexto) : T.seleccion.borradasTodas
+              );
             } catch {
               Alert.alert(
                 T.comun.borrarTodo.errorTitulo,
@@ -194,6 +204,19 @@ export default function PeriodoScreen() {
         },
       ]
     );
+  };
+
+  // Lo que no es elegir la foto (hoy, solo borrar el momento entero) va
+  // aquí, lejos del botón principal.
+  const abrirMasOpciones = (item: GrupoConCandidatas) => {
+    Alert.alert(T.seleccion.masOpciones, undefined, [
+      {
+        text: T.periodo.borrarMomento(item.candidatas.length),
+        style: 'destructive',
+        onPress: () => descartarGrupoCompleto(item),
+      },
+      { text: T.comun.cancelar, style: 'cancel' },
+    ]);
   };
 
   const grupoEditandoData = grupos.find((g) => g.grupoId === grupoEditando);
@@ -255,6 +278,7 @@ export default function PeriodoScreen() {
           renderItem={({ item, index }) => {
             const portada = item.candidatas[0]?.uri;
             const revisado = esRevisado(item.grupoId);
+            const nombre = obtenerNombreActividad(item.grupoId);
             return (
               <View style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}>
                 {portada && (
@@ -267,16 +291,32 @@ export default function PeriodoScreen() {
                   </Pressable>
                 )}
                 <View style={styles.tarjetaCuerpo}>
-                  <Text style={styles.tarjetaTitulo}>
-                    {T.periodo.tituloTarjeta(index + 1, item.fotos.length)}
-                    {revisado ? T.comun.revisado : ''}
-                  </Text>
+                  <View style={styles.tarjetaCabecera}>
+                    <Text style={styles.tarjetaTitulo}>
+                      {nombre
+                        ? T.periodo.tituloConNombre(nombre, item.fotos.length)
+                        : T.periodo.tituloTarjeta(index + 1, item.fotos.length)}
+                      {revisado ? T.comun.revisado : ''}
+                    </Text>
+                    {!revisado && (
+                      <Pressable
+                        style={styles.botonMasOpciones}
+                        onPress={() => abrirMasOpciones(item)}
+                        hitSlop={6}
+                        accessibilityLabel={T.seleccion.masOpciones}
+                      >
+                        <IconSymbol name="ellipsis" size={22} color={COLORES.textoSecundario} />
+                      </Pressable>
+                    )}
+                  </View>
+                  {/* El nombre sustituye a "Momento N" en el título: así se
+                      reconoce de un vistazo al volver a esta época. */}
                   <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>
                     <View style={styles.tarjetaEtiqueta}>
-                      <Text style={styles.tarjetaEtiquetaTexto}>
-                        {formatearEtiqueta(item.grupoId, item.fotos[0].creationTime)}
-                      </Text>
                       <IconSymbol name="pencil" size={14} color={COLORES.acentoOscuro} />
+                      <Text style={styles.tarjetaEtiquetaTexto}>
+                        {nombre ? T.periodo.cambiarNombre : T.periodo.ponleNombre}
+                      </Text>
                     </View>
                   </Pressable>
                   <Boton
@@ -288,15 +328,6 @@ export default function PeriodoScreen() {
                     {T.comun.elegirMejorFoto}
                   </Boton>
 
-                  {!revisado && (
-                    <Pressable
-                      style={styles.botonDescartarGrupo}
-                      onPress={() => descartarGrupoCompleto(item)}
-                      hitSlop={6}
-                    >
-                      <Text style={styles.textoDescartarGrupo}>{T.periodo.ningunaDeEstas}</Text>
-                    </Pressable>
-                  )}
                 </View>
               </View>
             );
@@ -459,10 +490,23 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   tarjetaTitulo: {
-    fontSize: 15,
+    flex: 1,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORES.texto,
     marginBottom: 10,
+  },
+  tarjetaCabecera: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  botonMasOpciones: {
+    width: 44,
+    height: 32,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginTop: -4,
   },
   tarjetaEtiqueta: {
     flexDirection: 'row',
@@ -480,16 +524,5 @@ const styles = StyleSheet.create({
     color: COLORES.acentoOscuro,
     fontSize: 13,
     fontWeight: '700',
-  },
-  botonDescartarGrupo: {
-    alignSelf: 'center',
-    marginTop: 10,
-    paddingVertical: 4,
-  },
-  textoDescartarGrupo: {
-    color: COLORES.textoSecundario,
-    fontSize: 13,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });
