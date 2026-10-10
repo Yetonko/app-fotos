@@ -33,23 +33,14 @@ import {
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
 import { fechaConDia } from '@/lib/idioma';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 import { Image } from 'expo-image';
 
 // --- Sistema de diseño (paleta cálida, suavizada hacia coral-rosado) -----
 // Centralizado aquí para reutilizar los mismos valores en seleccion.tsx.
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
-// -------------------------------------------------------------------------
 
 // Igual que en bienvenida.tsx: "iPhone" en iOS, "móvil" en cualquier otro
 // caso (Android), sin necesidad de ninguna librería nueva.
@@ -322,7 +313,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>Fondly</Text>
+      <Text style={styles.titulo}>{T.home.titulo}</Text>
       <Text style={styles.insigniaPrivacidad}>{T.home.insigniaPrivacidad(DISPOSITIVO)}</Text>
 
       {status === '¡Listo!' && (
@@ -346,9 +337,9 @@ export default function HomeScreen() {
         <View style={styles.sinPermisoContenedor}>
           <Text style={styles.sinPermisoTitulo}>{T.home.sinPermisoTitulo}</Text>
           <Text style={styles.sinPermisoTexto}>{T.home.sinPermisoTexto(DISPOSITIVO)}</Text>
-          <BouncyPressable style={styles.sinPermisoBoton} onPress={() => Linking.openSettings()}>
-            <Text style={styles.sinPermisoBotonTexto}>{T.home.abrirAjustes}</Text>
-          </BouncyPressable>
+          <Boton style={styles.sinPermisoBoton} onPress={() => Linking.openSettings()}>
+            {T.home.abrirAjustes}
+          </Boton>
         </View>
       )}
 
@@ -428,18 +419,17 @@ export default function HomeScreen() {
                 </Text>
 
                 {item.candidatas.length > 0 && (
-                  <BouncyPressable
-                    style={ganadora ? styles.botonSecundario : styles.botonGrupo}
+                  <Boton
+                    compacto
+                    variante={ganadora ? 'secundario' : 'principal'}
                     onPress={() => seleccionarGrupo(item.grupoId)}
                   >
-                    <Text style={ganadora ? styles.textoBotonSecundario : styles.textoBotonGrupo}>
-                      {ganadora
-                        ? T.home.volverAElegir
-                        : item.candidatas.length === 1
-                        ? T.home.revisarYLimpiar
-                        : T.comun.elegirMejorFoto}
-                    </Text>
-                  </BouncyPressable>
+                    {ganadora
+                      ? T.home.volverAElegir
+                      : item.candidatas.length === 1
+                      ? T.home.revisarYLimpiar
+                      : T.comun.elegirMejorFoto}
+                  </Boton>
                 )}
 
               </View>
@@ -492,16 +482,6 @@ const styles = StyleSheet.create({
   },
   sinPermisoBoton: {
     marginTop: 10,
-    backgroundColor: COLORES.acentoOscuro,
-    minHeight: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sinPermisoBotonTexto: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
   },
   container: {
     flex: 1,
@@ -509,12 +489,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
   },
   titulo: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 8,
     color: COLORES.texto,
     fontSize: 28,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   cabeceraGanancia: {
     alignItems: 'center',
@@ -528,7 +507,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   espacioCritico: {
-    color: COLORES.acento,
+    color: COLORES.acentoTexto,
   },
   gananciaTexto: {
     fontSize: 15,
@@ -554,7 +533,7 @@ const styles = StyleSheet.create({
   },
   textoDevReset: {
     color: COLORES.textoSecundario,
-    fontSize: 11,
+    fontSize: 13,
     textDecorationLine: 'underline',
   },
   status: {
@@ -627,7 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.35)',
-    shadowColor: '#D85A30',
+    shadowColor: COLORES.acentoOscuro,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -681,7 +660,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tarjetaRevisada: {
-    opacity: 0.55,
+    opacity: 0.8,
   },
   portadaContenedor: {
     position: 'relative',
@@ -718,7 +697,7 @@ const styles = StyleSheet.create({
   tarjetaEtiqueta: {
     alignSelf: 'flex-start',
     color: COLORES.acentoOscuro,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     backgroundColor: COLORES.acentoSuave,
     paddingHorizontal: 10,
@@ -728,28 +707,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  botonGrupo: {
-    backgroundColor: COLORES.acento,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    alignSelf: 'flex-start',
-  },
-  botonSecundario: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    alignSelf: 'flex-start',
-  },
-  textoBotonGrupo: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  textoBotonSecundario: {
-    color: COLORES.acento,
-    fontWeight: '600',
-    fontSize: 13,
-  },
   botonDescartarGrupo: {
     alignSelf: 'flex-start',
     marginTop: 8,
@@ -757,7 +714,7 @@ const styles = StyleSheet.create({
   },
   textoDescartarGrupo: {
     color: COLORES.textoSecundario,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

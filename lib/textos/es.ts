@@ -18,7 +18,7 @@ export const es = {
     publicar: 'Publicar',
     borrar: 'Borrar',
     descartar: 'Descartar',
-    volver: '‹ Volver',
+    volver: 'Volver',
     volverAMisFotos: 'Volver a mis fotos',
     listo: '¡Listo!',
     errorCompartir: 'No hemos podido abrir las opciones para compartir.',
@@ -45,6 +45,7 @@ export const es = {
   },
 
   home: {
+    titulo: 'Inicio',
     insigniaPrivacidad: (dispositivo: string) => `🔒 100% en tu ${dispositivo}`,
     espacioLibre: (espacio: string, critico: boolean) =>
       `${critico ? 'Solo te quedan ' : 'Te quedan '}${espacio} libres`,
@@ -52,7 +53,7 @@ export const es = {
     tituloTarjeta: (fecha: string, n: number) => `${fecha} · ${n} fotos`,
     volverAElegir: 'Volver a elegir',
     revisarYLimpiar: 'Revisar y limpiar ✨',
-    explorarTitulo: '📅 Revisar fotos más antiguas',
+    explorarTitulo: 'Revisar fotos más antiguas',
     explorarSubtitulo: 'Elige tus mejores momentos de otros periodos',
     // Si no nos da permiso para ver sus fotos
     sinPermisoTitulo: 'Necesitamos ver tus fotos',
@@ -141,23 +142,23 @@ export const es = {
   },
 
   albumes: {
-    titulo: 'Tus momentos',
+    titulo: 'Elegidas',
     vacio:
-      'Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en Home.',
+      'Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en Inicio.',
     fotosElegidas: (n: number) => `${n} ${n === 1 ? 'foto elegida' : 'fotos elegidas'}`,
   },
 
   // Nombres de las pestañas de abajo
   pestanas: {
-    home: 'Home',
-    momento: 'Momento',
-    periodos: 'Periodos',
-    albumes: 'Álbumes',
+    home: 'Inicio',
+    momento: 'Ahora',
+    periodos: 'Épocas',
+    albumes: 'Elegidas',
   },
 
   // Pantallas de bienvenida (primera vez que se abre la app)
   bienvenida: {
-    atras: '‹ Atrás',
+    atras: 'Atrás',
     siguiente: 'Siguiente',
     empezar: 'Empezar',
     paso1Titulo: 'Encuentra tu mejor foto\ny publícala',
@@ -226,12 +227,12 @@ export const es = {
     calculandoEspacio: 'Calculando cuánto espacio ganas...',
     vasALiberar: (tamano: string) => `Vas a liberar ${tamano}`,
     sinEspacioALiberar: 'Te las quedas todas',
-    pistaLupa: 'Toca 🔍 para verla en grande',
+    pistaLupa: 'Toca la lupa para verla en grande',
     borrosa: 'Borrosa',
     eliminando: 'Borrando...',
     borrarN: (n: number) => `Borrar ${n} ${n === 1 ? 'foto' : 'fotos'}`,
     quedarmelasTodas: 'Quedármelas todas',
-    volverAMiFoto: '‹ Volver a mi foto',
+    volverAMiFoto: 'Volver a mi foto',
     // Avisos de borrado
     borrarFotosTitulo: 'Borrar fotos',
     borrarFotosTexto: (n: number, recuperacion: string) =>
@@ -244,8 +245,8 @@ export const es = {
   },
 
   periodos: {
-    titulo: 'Tus recuerdos por épocas',
-    subtitulo: 'Revive cada época y quédate con lo mejor',
+    titulo: 'Épocas',
+    subtitulo: 'Haz sitio repasando tus fotos antiguas',
     cargando: 'Revisando tu carrete por periodos...',
     vacio: 'No hemos encontrado fotos en tu carrete todavía.',
     avisoMuchasFotos: 'Son bastantes fotos, puede tardar un poco más',

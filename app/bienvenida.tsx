@@ -1,24 +1,15 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, View, Text, Platform, PanResponder, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Platform, PanResponder } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
+import { BotonVolver } from '@/components/boton-volver';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 
-// --- Sistema de diseño (mismos valores que el resto de pantallas) --------
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
-// -------------------------------------------------------------------------
 
 // Nombre del dispositivo a mostrar en el texto: "iPhone" en iOS, "móvil" en
 // cualquier otro caso (Android). Platform.OS ya viene con React Native, no
@@ -54,6 +45,7 @@ const PASOS = [
 
 export default function BienvenidaScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [paso, setPaso] = useState(0);
   // Copia "plana" del paso actual, para poder comprobarlo de forma síncrona
   // dentro de siguiente() sin depender del valor capturado en el cierre de
@@ -107,15 +99,16 @@ export default function BienvenidaScreen() {
   const actual = PASOS[paso];
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
-      <Pressable
-        onPress={anterior}
-        disabled={paso === 0}
-        hitSlop={10}
-        style={[styles.botonAtras, paso === 0 && styles.botonAtrasOculto]}
+    <View
+      style={[styles.container, { paddingTop: insets.top + 56, paddingBottom: insets.bottom + 24 }]}
+      {...panResponder.panHandlers}
+    >
+      <View
+        style={[styles.botonAtras, { top: insets.top + 8 }, paso === 0 && styles.botonAtrasOculto]}
+        pointerEvents={paso === 0 ? 'none' : 'auto'}
       >
-        <Text style={styles.textoAtras}>{T.bienvenida.atras}</Text>
-      </Pressable>
+        <BotonVolver texto={T.bienvenida.atras} onPress={anterior} />
+      </View>
 
       <View style={styles.contenido}>
         <Text style={styles.emoji}>{actual.emoji}</Text>
@@ -129,9 +122,9 @@ export default function BienvenidaScreen() {
             <View key={i} style={[styles.punto, i === paso && styles.puntoActivo]} />
           ))}
         </View>
-        <BouncyPressable style={styles.boton} onPress={siguiente}>
-          <Text style={styles.textoBoton}>{actual.boton}</Text>
-        </BouncyPressable>
+        <Boton style={styles.boton} onPress={siguiente}>
+          {actual.boton}
+        </Boton>
       </View>
     </View>
   );
@@ -141,8 +134,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORES.fondo,
-    paddingTop: 100,
-    paddingBottom: 50,
     justifyContent: 'space-between',
   },
   contenido: {
@@ -151,19 +142,11 @@ const styles = StyleSheet.create({
   },
   botonAtras: {
     position: 'absolute',
-    top: 55,
     left: 20,
     zIndex: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
   },
   botonAtrasOculto: {
     opacity: 0,
-  },
-  textoAtras: {
-    color: COLORES.textoSecundario,
-    fontSize: 15,
-    fontWeight: '600',
   },
   emoji: {
     fontSize: 64,
@@ -201,14 +184,7 @@ const styles = StyleSheet.create({
     width: 20,
   },
   boton: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 20,
-    width: '100%',
-    alignItems: 'center',
-  },
-  textoBoton: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 18,
+    alignSelf: 'stretch',
+    marginHorizontal: 30,
   },
 });

@@ -8,22 +8,10 @@ import * as MediaLibrary from 'expo-media-library';
 import { fotosDeVentana, ordenarPorTiempo, VentanaMomento, FotoMomento } from '@/lib/momento-rapido';
 import { guardarEnAlbumFavoritas } from '@/lib/album';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
-import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 
-// --- Sistema de diseño (mismos valores que el resto de pantallas) --------
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-  peligro: '#C15C4E',
-};
-// -------------------------------------------------------------------------
 
 const VENTANAS: { clave: VentanaMomento; etiqueta: string }[] = [
   { clave: '5min', etiqueta: T.momento.ventana5min },
@@ -177,7 +165,7 @@ export default function MomentoScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       {/* ── Cabecera ── */}
       <View style={styles.cabecera}>
         <Text style={styles.titulo}>{T.momento.titulo}</Text>
@@ -256,13 +244,9 @@ export default function MomentoScreen() {
       {/* ── Barra inferior de publicar ── */}
       {marcadas.length > 0 && (
         <View style={styles.barraInferior}>
-          <BouncyPressable style={styles.botonPublicar} onPress={publicar} disabled={publicando}>
-            <Text style={styles.botonPublicarTexto}>
-              {publicando
-                ? T.momento.preparando
-                : T.momento.publicarN(marcadas.length)}
-            </Text>
-          </BouncyPressable>
+          <Boton onPress={publicar} disabled={publicando}>
+            {publicando ? T.momento.preparando : T.momento.publicarN(marcadas.length)}
+          </Boton>
         </View>
       )}
 
@@ -284,21 +268,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
   },
   cabecera: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
     marginBottom: 28,
   },
   titulo: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORES.texto,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   subtitulo: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORES.acento,
-    textAlign: 'center',
+    color: COLORES.acentoTexto,
+    textAlign: 'left',
     marginTop: 4,
   },
   selectorVentana: {
@@ -416,16 +400,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
     borderTopWidth: 1,
     borderTopColor: COLORES.borde,
-  },
-  botonPublicar: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 16,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  botonPublicarTexto: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

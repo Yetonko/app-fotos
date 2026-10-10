@@ -16,20 +16,12 @@ import {
   formatearFecha,
 } from '@/lib/etiquetas';
 import { EtiquetaModal } from '@/components/etiqueta-modal';
-import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
+import { BotonVolver } from '@/components/boton-volver';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 
-// Misma paleta que el resto de pantallas.
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
 
 type CandidataConUri = { id: string; uri: string };
 type GrupoConCandidatas = GrupoDetectado & { candidatas: CandidataConUri[] };
@@ -208,9 +200,7 @@ export default function PeriodoScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
-      <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.botonVolverTexto}>{T.comun.volver}</Text>
-      </Pressable>
+      <BotonVolver onPress={() => router.back()} />
       <Text style={styles.titulo}>{etiqueta ?? T.periodo.tituloPorDefecto}</Text>
 
       {status !== '¡Listo!' && (
@@ -282,18 +272,21 @@ export default function PeriodoScreen() {
                     {revisado ? T.comun.revisado : ''}
                   </Text>
                   <Pressable onPress={() => setGrupoEditando(item.grupoId)} hitSlop={6}>
-                    <Text style={styles.tarjetaEtiqueta}>
-                      {formatearEtiqueta(item.grupoId, item.fotos[0].creationTime)} ✏️
-                    </Text>
+                    <View style={styles.tarjetaEtiqueta}>
+                      <Text style={styles.tarjetaEtiquetaTexto}>
+                        {formatearEtiqueta(item.grupoId, item.fotos[0].creationTime)}
+                      </Text>
+                      <IconSymbol name="pencil" size={14} color={COLORES.acentoOscuro} />
+                    </View>
                   </Pressable>
-                  <BouncyPressable
-                    style={styles.boton}
+                  <Boton
+                    compacto
                     onPress={() =>
                       router.push({ pathname: '/seleccion', params: { grupoId: item.grupoId } })
                     }
                   >
-                    <Text style={styles.textoBoton}>{T.comun.elegirMejorFoto}</Text>
-                  </BouncyPressable>
+                    {T.comun.elegirMejorFoto}
+                  </Boton>
 
                   {!revisado && (
                     <Pressable
@@ -331,17 +324,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
     paddingHorizontal: 20,
     paddingTop: 16,
-  },
-  botonVolver: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingRight: 12,
-    marginBottom: 4,
-  },
-  botonVolverTexto: {
-    fontSize: 17,
-    color: COLORES.acento,
-    fontWeight: '600',
   },
   titulo: {
     fontSize: 22,
@@ -413,7 +395,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.35)',
-    shadowColor: '#D85A30',
+    shadowColor: COLORES.acentoOscuro,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -467,7 +449,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tarjetaRevisada: {
-    opacity: 0.55,
+    opacity: 0.8,
   },
   portada: {
     width: '100%',
@@ -483,10 +465,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   tarjetaEtiqueta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     alignSelf: 'flex-start',
-    color: COLORES.acentoOscuro,
-    fontSize: 12,
-    fontWeight: '700',
     backgroundColor: COLORES.acentoSuave,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -494,16 +476,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     overflow: 'hidden',
   },
-  boton: {
-    backgroundColor: COLORES.acento,
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  textoBoton: {
-    color: '#FFFFFF',
+  tarjetaEtiquetaTexto: {
+    color: COLORES.acentoOscuro,
+    fontSize: 13,
     fontWeight: '700',
-    fontSize: 14,
   },
   botonDescartarGrupo: {
     alignSelf: 'center',
@@ -512,7 +488,7 @@ const styles = StyleSheet.create({
   },
   textoDescartarGrupo: {
     color: COLORES.textoSecundario,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

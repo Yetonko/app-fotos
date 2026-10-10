@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -35,23 +36,13 @@ import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formate
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { mejorarFoto, ResultadoMejora } from '@/lib/mejora';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
+import { BotonVolver } from '@/components/boton-volver';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 import { formatearDecimal } from '@/lib/idioma';
 
-// --- Sistema de diseño (mismos valores que app/(tabs)/index.tsx) --------
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-  peligro: '#C15C4E',
-  peligroSuave: '#F3DCD6',
-};
-// -------------------------------------------------------------------------
 
 // Suma el tamaño en disco de un conjunto de fotos, para poder decirle al
 // usuario cuánto espacio ha liberado al borrar. Si alguna foto falla al
@@ -93,6 +84,7 @@ const TEXTO_RECUPERACION =
 
 export default function SeleccionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { grupoId } = useLocalSearchParams<{ grupoId?: string }>();
 
   // El grupo (candidatas + descartadas) solo puede venir del store en
@@ -438,9 +430,7 @@ export default function SeleccionScreen() {
         <View style={styles.avisoContenedor}>
           <Text style={styles.titulo}>{T.seleccion.noEncontrado}</Text>
           <Text style={styles.pista}>{T.seleccion.noEncontradoTexto}</Text>
-          <BouncyPressable style={styles.botonAccion} onPress={() => router.replace('/')}>
-            <Text style={styles.textoBotonAccion}>{T.comun.volverAMisFotos}</Text>
-          </BouncyPressable>
+          <Boton onPress={() => router.replace('/')}>{T.comun.volverAMisFotos}</Boton>
         </View>
       </View>
     );
@@ -456,12 +446,15 @@ export default function SeleccionScreen() {
     return (
       <View style={styles.container}>
         {paso === 'foto' ? (
-          <ScrollView contentContainerStyle={styles.scrollContenido}>
+          <ScrollView contentContainerStyle={[styles.scrollContenido, { paddingTop: insets.top + 12 }]}>
             <Text style={styles.titulo}>{T.seleccion.laElegida}</Text>
             <Pressable onPress={() => setMostrarEtiquetaModal(true)} hitSlop={6}>
-              <Text style={styles.etiquetaPill}>
-                {grupo.creationTime ? formatearEtiqueta(grupoId!, grupo.creationTime) : ''} ✏️
-              </Text>
+              <View style={styles.etiquetaPill}>
+                <Text style={styles.etiquetaPillTexto}>
+                  {grupo.creationTime ? formatearEtiqueta(grupoId!, grupo.creationTime) : ''}
+                </Text>
+                <IconSymbol name="pencil" size={14} color={COLORES.acentoOscuro} />
+              </View>
             </Pressable>
             <Pressable onPress={() => setFotoAmpliada(estado.ganadora!.uri)}>
               <View style={styles.fotoGanadoraContenedor}>
@@ -485,53 +478,41 @@ export default function SeleccionScreen() {
                   <Image source={{ uri: fotoMejorada.uri }} style={styles.previewImagen} />
                 </Pressable>
                 <View style={styles.previewAcciones}>
-                  <BouncyPressable style={styles.botonGuardarMejora} onPress={guardarMejora}>
-                    <Text style={styles.textoBotonAccion}>{T.seleccion.guardarEnCarrete}</Text>
-                  </BouncyPressable>
-                  <Pressable style={styles.botonDescartarMejora} onPress={descartarMejora}>
-                    <Text style={styles.textoBotonVolver}>{T.comun.descartar}</Text>
-                  </Pressable>
+                  <Boton onPress={guardarMejora}>{T.seleccion.guardarEnCarrete}</Boton>
+                  <Boton variante="texto" onPress={descartarMejora}>
+                    {T.comun.descartar}
+                  </Boton>
                 </View>
               </View>
             )}
 
             <View style={styles.accionesContenedor}>
-              <BouncyPressable style={styles.botonAccion} onPress={compartir}>
-                <Text style={styles.textoBotonAccion}>{T.seleccion.compartir}</Text>
-              </BouncyPressable>
+              <Boton onPress={compartir}>{T.seleccion.compartir}</Boton>
 
               {resto.length > 0 ? (
-                <BouncyPressable style={styles.botonSecundario} onPress={() => setPaso('otras')}>
-                  <Text style={styles.textoBotonSecundario}>
-                    {T.seleccion.seguirConOtras(resto.length)}
-                  </Text>
-                </BouncyPressable>
+                <Boton variante="secundario" onPress={() => setPaso('otras')}>
+                  {T.seleccion.seguirConOtras(resto.length)}
+                </Boton>
               ) : (
-                <BouncyPressable style={styles.botonSecundario} onPress={() => router.back()}>
-                  <Text style={styles.textoBotonSecundario}>{T.comun.volverAMisFotos}</Text>
-                </BouncyPressable>
+                <Boton variante="secundario" onPress={() => router.back()}>
+                  {T.comun.volverAMisFotos}
+                </Boton>
               )}
             </View>
 
-            <Pressable
-              style={styles.botonVolver}
-              onPress={abrirMasOpciones}
-              disabled={borrando || mejorando}
-              hitSlop={8}
-            >
-              <Text style={styles.textoBotonVolver}>{T.seleccion.masOpciones}</Text>
-            </Pressable>
+            <Boton variante="texto" onPress={abrirMasOpciones} disabled={borrando || mejorando}>
+              {T.seleccion.masOpciones}
+            </Boton>
           </ScrollView>
         ) : (
-          <ScrollView contentContainerStyle={styles.scrollContenido}>
-            <Pressable
-              style={styles.botonSalirTorneo}
-              onPress={() => setPaso('foto')}
-              disabled={borrando}
-              hitSlop={10}
-            >
-              <Text style={styles.botonSalirTorneoTexto}>{T.seleccion.volverAMiFoto}</Text>
-            </Pressable>
+          <ScrollView contentContainerStyle={[styles.scrollContenido, { paddingTop: insets.top + 12 }]}>
+            <View style={styles.botonSalirTorneo}>
+              <BotonVolver
+                texto={T.seleccion.volverAMiFoto}
+                onPress={() => setPaso('foto')}
+                disabled={borrando}
+              />
+            </View>
 
             <Text style={styles.titulo}>{T.seleccion.otrasTitulo(resto.length)}</Text>
             <Text style={styles.pista}>{T.seleccion.otrasSubtitulo}</Text>
@@ -582,7 +563,7 @@ export default function SeleccionScreen() {
                         }}
                         hitSlop={8}
                       >
-                        <Text style={styles.miniaturaExtraLupaTexto}>🔍</Text>
+                        <IconSymbol name="magnifyingglass" size={16} color="#FFFFFF" />
                       </Pressable>
                     </View>
                   </Pressable>
@@ -602,33 +583,23 @@ export default function SeleccionScreen() {
 
             <View style={styles.accionesContenedor}>
               {borradoHecho ? (
-                <BouncyPressable style={styles.botonAccion} onPress={() => router.back()}>
-                  <Text style={styles.textoBotonAccion}>{T.comun.volverAMisFotos}</Text>
-                </BouncyPressable>
+                <Boton onPress={() => router.back()}>{T.comun.volverAMisFotos}</Boton>
               ) : numABorrar > 0 ? (
                 <>
                   <Text style={styles.textoSeguridad}>{TEXTO_RECUPERACION}</Text>
-                  <BouncyPressable
-                    style={styles.botonAccion}
+                  <Boton
+                    variante="peligro"
                     onPress={guardarExtrasYBorrarResto}
                     disabled={borrando}
                   >
-                    <Text style={styles.textoBotonAccion}>
-                      {borrando ? T.seleccion.eliminando : T.seleccion.borrarN(numABorrar)}
-                    </Text>
-                  </BouncyPressable>
-                  <BouncyPressable
-                    style={styles.botonSecundario}
-                    onPress={() => router.back()}
-                    disabled={borrando}
-                  >
-                    <Text style={styles.textoBotonSecundario}>{T.seleccion.quedarmelasTodas}</Text>
-                  </BouncyPressable>
+                    {borrando ? T.seleccion.eliminando : T.seleccion.borrarN(numABorrar)}
+                  </Boton>
+                  <Boton variante="secundario" onPress={() => router.back()} disabled={borrando}>
+                    {T.seleccion.quedarmelasTodas}
+                  </Boton>
                 </>
               ) : (
-                <BouncyPressable style={styles.botonAccion} onPress={() => router.back()}>
-                  <Text style={styles.textoBotonAccion}>{T.seleccion.quedarmelasTodas}</Text>
-                </BouncyPressable>
+                <Boton onPress={() => router.back()}>{T.seleccion.quedarmelasTodas}</Boton>
               )}
             </View>
           </ScrollView>
@@ -694,14 +665,14 @@ export default function SeleccionScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContenido}
+        contentContainerStyle={[styles.scrollContenido, { paddingTop: insets.top + 12 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Salir del torneo sin elegir: no se pierde nada ni gasta una
             selección gratis (solo se cuenta al elegir ganadora). */}
-        <Pressable style={styles.botonSalirTorneo} onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.botonSalirTorneoTexto}>{T.comun.volver}</Text>
-        </Pressable>
+        <View style={styles.botonSalirTorneo}>
+          <BotonVolver onPress={() => router.back()} />
+        </View>
         <View style={styles.progresoContenedor}>
           {Array.from({ length: totalComparaciones }).map((_, i) => (
             <View
@@ -759,7 +730,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
   },
   scrollContenido: {
-    paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 60,
     alignItems: 'center',
@@ -776,7 +746,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
     marginBottom: 6,
   },
   titulo: {
@@ -787,16 +756,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   etiquetaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     alignSelf: 'center',
-    color: COLORES.acentoOscuro,
-    fontSize: 14,
-    fontWeight: '700',
     backgroundColor: COLORES.acentoSuave,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 14,
     marginBottom: 16,
     overflow: 'hidden',
+  },
+  etiquetaPillTexto: {
+    color: COLORES.acentoOscuro,
+    fontSize: 14,
+    fontWeight: '700',
   },
   pista: {
     marginBottom: 20,
@@ -808,16 +782,14 @@ const styles = StyleSheet.create({
     marginTop: -14,
     marginBottom: 20,
     color: COLORES.textoSecundario,
-    fontSize: 12,
-    fontStyle: 'italic',
+    fontSize: 13,
     textAlign: 'center',
   },
   pistaZoomExtras: {
     marginTop: 4,
     marginBottom: 20,
     color: COLORES.textoSecundario,
-    fontSize: 12,
-    fontStyle: 'italic',
+    fontSize: 13,
     textAlign: 'center',
   },
   // Version destacada de pistaZoom / pistaZoomExtras: se aplica encima del
@@ -856,15 +828,7 @@ const styles = StyleSheet.create({
   },
   botonSalirTorneo: {
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingRight: 12,
-    marginTop: -16,
     marginBottom: 8,
-  },
-  botonSalirTorneoTexto: {
-    fontSize: 17,
-    color: COLORES.acento,
-    fontWeight: '600',
   },
   progresoContenedor: {
     flexDirection: 'row',
@@ -914,7 +878,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   vsTexto: {
-    color: '#993C1D',
+    color: COLORES.acentoTexto,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -951,7 +915,7 @@ const styles = StyleSheet.create({
   },
   textoCorazon: {
     fontSize: 24,
-    color: COLORES.acento,
+    color: COLORES.acentoTexto,
   },
 
   fotoGanadoraContenedor: {
@@ -990,9 +954,8 @@ const styles = StyleSheet.create({
   },
   previewEtiqueta: {
     color: COLORES.textoSecundario,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
   },
@@ -1005,16 +968,6 @@ const styles = StyleSheet.create({
   previewAcciones: {
     width: '100%',
     gap: 8,
-  },
-  botonGuardarMejora: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 12,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  botonDescartarMejora: {
-    paddingVertical: 8,
-    alignItems: 'center',
   },
 
   accionesContenedor: {
@@ -1029,37 +982,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
   },
-  botonAccion: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 14,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  textoBotonAccion: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  botonSecundario: {
-    backgroundColor: COLORES.acentoSuave,
-    paddingVertical: 14,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  textoBotonSecundario: {
-    color: COLORES.acentoOscuro,
-    fontWeight: '600',
-    fontSize: 15,
-  },
   notaMejora: {
     textAlign: 'center',
     color: COLORES.textoSecundario,
-    fontSize: 12,
-    fontStyle: 'italic',
+    fontSize: 13,
     marginBottom: 16,
   },
   avisoGuardada: {
-    color: COLORES.acento,
+    color: COLORES.acentoTexto,
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
@@ -1105,9 +1035,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  miniaturaExtraLupaTexto: {
-    fontSize: 14,
-  },
   miniaturaExtraBorrosa: {
     position: 'absolute',
     top: -6,
@@ -1119,7 +1046,7 @@ const styles = StyleSheet.create({
   },
   miniaturaExtraBorrosaTexto: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
   },
   miniaturaExtraDebug: {
@@ -1133,7 +1060,7 @@ const styles = StyleSheet.create({
   },
   miniaturaExtraDebugTexto: {
     color: '#FFFFFF',
-    fontSize: 8,
+    fontSize: 13,
     fontWeight: '700',
   },
   miniaturaExtraCheck: {
@@ -1151,14 +1078,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
-  },
-
-  botonVolver: {
-    paddingVertical: 8,
-  },
-  textoBotonVolver: {
-    color: COLORES.textoSecundario,
-    fontWeight: '600',
-    fontSize: 14,
   },
 });

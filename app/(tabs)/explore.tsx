@@ -20,21 +20,12 @@ import {
   Periodo,
   UMBRAL_DIVIDIR_EN_MESES,
 } from '@/lib/periodos';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
 // mismo patrón que ya usan esas pantallas.
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
 
 const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : T.comun.movil;
 
@@ -219,9 +210,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORES.texto,
+    textAlign: 'left',
     marginBottom: 4,
   },
   subtitulo: {
@@ -291,7 +283,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tarjetaRevisada: {
-    opacity: 0.55,
+    opacity: 0.8,
   },
   tarjetaTitulo: {
     fontSize: 17,
@@ -305,9 +297,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tarjetaAviso: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORES.textoSecundario,
     marginTop: 6,
-    fontStyle: 'italic',
   },
 });

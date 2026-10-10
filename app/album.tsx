@@ -5,19 +5,11 @@ import { FlatList, StyleSheet, View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 
 import { inicializarMomentos, obtenerMomentos } from '@/lib/momentos';
+import { BotonVolver } from '@/components/boton-volver';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
 
 // Clave 'YYYY-MM' de un creationTime, para casar con la clave del álbum.
 function claveMes(creationTime: number): string {
@@ -61,9 +53,7 @@ export default function AlbumScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
-      <Pressable style={styles.botonVolver} onPress={() => router.back()} hitSlop={8}>
-        <Text style={styles.botonVolverTexto}>{T.comun.volver}</Text>
-      </Pressable>
+      <BotonVolver onPress={() => router.back()} />
       <Text style={styles.titulo}>{nombre ?? T.album.tituloPorDefecto}</Text>
       <Text style={styles.subtitulo}>
         {T.albumes.fotosElegidas(fotos.length)}
@@ -97,17 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
     paddingHorizontal: 16,
     paddingTop: 16,
-  },
-  botonVolver: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingRight: 12,
-    marginBottom: 4,
-  },
-  botonVolverTexto: {
-    fontSize: 17,
-    color: COLORES.acento,
-    fontWeight: '600',
   },
   titulo: {
     fontSize: 22,
