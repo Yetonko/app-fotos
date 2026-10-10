@@ -121,6 +121,14 @@ export default function SeleccionScreen() {
   // texto del pill (se calcula desde una cache en memoria, no desde estado
   // de React, asi que necesita un disparador propio para re-renderizar).
   const [tickEtiqueta, setTickEtiqueta] = useState(0);
+  // Tras el torneo hay dos pasos, cada uno con una sola decisión:
+  // 'foto' celebra y comparte la elegida; 'otras' decide qué hacer con el
+  // resto de la ráfaga (el único sitio donde se borran las no elegidas).
+  const [paso, setPaso] = useState<'foto' | 'otras'>('foto');
+  // true en cuanto un borrado ha ido bien: a partir de ahí no se ofrece
+  // ningún otro borrado en esta pantalla (las fotos de `resto` ya no son
+  // fiables y la pantalla se va a cerrar).
+  const [borradoHecho, setBorradoHecho] = useState(false);
 
   // Se carga una vez al entrar a la pantalla; el tick fuerza un re-render
   // cuando termina de cargar, para que coachmarkVisto() ya lea del cache
@@ -179,10 +187,6 @@ export default function SeleccionScreen() {
         registrarMomento(grupoId, estado.ganadora, grupo.creationTime);
       }
       guardarEnAlbumFavoritas(estado.ganadora.id).then(setGuardadaEnAlbum);
-      Alert.alert(T.seleccion.yaTienesTuFoto, undefined, [
-        { text: T.comun.ahoraNo, style: 'cancel' },
-        { text: T.comun.publicar, onPress: compartir },
-      ]);
     }
   }, [estado.ganadora, grupoId]);
 
@@ -293,7 +297,7 @@ export default function SeleccionScreen() {
   // Borra un conjunto de fotos de esta ráfaga, calculando antes cuánto
   // espacio se va a liberar para poder decírselo al usuario al terminar.
   const confirmarYBorrarFotos = (idsABorrar: string[]) => {
-    if (idsABorrar.length === 0) return;
+    if (idsABorrar.length === 0 || borrando || borradoHecho) return;
     Alert.alert(
       T.seleccion.borrarFotosTitulo,
       T.seleccion.borrarFotosTexto(idsABorrar.length, TEXTO_RECUPERACION),
@@ -315,8 +319,10 @@ export default function SeleccionScreen() {
                 );
                 return;
               }
-              setExtrasSeleccionadas([]);
-              await sumarEleccion(tamanoLiberado);
+              setBorradoHecho(true);
+              // Las fotos ya están borradas: si falla solo el contador de
+              // progreso, no hay que decirle que el borrado ha fallado.
+              await sumarEleccion(tamanoLiberado).catch(() => {});
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
                 T.comun.listo,
@@ -339,17 +345,13 @@ export default function SeleccionScreen() {
     );
   };
 
-  const borrarResto = () => {
-    confirmarYBorrarFotos(resto.map((f) => f.id));
-  };
-
   // Borra TODAS las fotos del grupo, incluida la ganadora: para casos de
   // fotos-recordatorio (ej. un ticket, una pizarra) donde, tras ver la
   // "elegida", el usuario se da cuenta de que en realidad no quiere
   // quedarse con ninguna. A diferencia de confirmarYBorrarFotos (que
   // siempre respeta la ganadora), aquí se borra todo sin excepción.
   const borrarGrupoCompleto = () => {
-    if (!estado.ganadora) return;
+    if (!estado.ganadora || borrando || borradoHecho) return;
     const todasLasFotos = [...candidatasOriginales, ...descartadasPorNitidez];
     const idsTodo = todasLasFotos.map((f) => f.id);
     Alert.alert(
@@ -372,6 +374,7 @@ export default function SeleccionScreen() {
                 );
                 return;
               }
+              setBorradoHecho(true);
               const tamanoTexto = formatearTamano(tamanoLiberado);
               Alert.alert(
                 T.comun.listo,
@@ -399,6 +402,17 @@ export default function SeleccionScreen() {
     confirmarYBorrarFotos(idsABorrar);
   };
 
+  // Lo que no es la acción principal del paso 'foto' vive aquí, lejos del
+  // botón de compartir para no tocarlo sin querer.
+  const abrirMasOpciones = () => {
+    if (borrando || borradoHecho) return;
+    Alert.alert(T.seleccion.masOpciones, undefined, [
+      { text: T.seleccion.darBrillo, onPress: retocar },
+      { text: T.seleccion.ningunaBorrarTambien, style: 'destructive', onPress: borrarGrupoCompleto },
+      { text: T.comun.cancelar, style: 'cancel' },
+    ]);
+  };
+
   // No hay grupo válido en el store: o el grupoId no existe (deep link con
   // un id inventado), o la app se ha reiniciado y el store en memoria se ha
   // vaciado. En ningún caso se rellena con datos de prueba: se avisa y se
@@ -418,175 +432,192 @@ export default function SeleccionScreen() {
   }
 
   if (estado.ganadora) {
+    // Lo que se borraría ahora mismo en el paso 'otras': todo el resto menos
+    // las que ha marcado para guardar. Es la misma lista que usa
+    // guardarExtrasYBorrarResto, así el número del botón y el del aviso de
+    // confirmación siempre coinciden.
+    const numABorrar = resto.filter((f) => !extrasSeleccionadas.includes(f.id)).length;
+
     return (
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.scrollContenido}>
-          <Text style={styles.titulo}>{T.seleccion.laElegida}</Text>
-          <Pressable onPress={() => setMostrarEtiquetaModal(true)} hitSlop={6}>
-            <Text style={styles.etiquetaPill}>
-              {grupo.creationTime ? formatearEtiqueta(grupoId!, grupo.creationTime) : ''} ✏️
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => setFotoAmpliada(estado.ganadora!.uri)}>
-            <View style={styles.fotoGanadoraContenedor}>
-              <Image source={{ uri: estado.ganadora.uri }} style={styles.fotoGanadora} />
-              <View style={styles.coronaInsignia}>
-                <Text style={styles.coronaTexto}>👑</Text>
-              </View>
-            </View>
-          </Pressable>
-
-          {guardadaEnAlbum && (
-            <Text style={styles.avisoGuardada}>{T.seleccion.guardadaEnAlbum}</Text>
-          )}
-
-          {fotoMejorada && (
-            <View style={styles.previewContenedor}>
-              <Text style={styles.previewEtiqueta}>{T.seleccion.versionMejorada}</Text>
-              <Pressable onPress={() => setFotoAmpliada(fotoMejorada.uri)}>
-                <Image source={{ uri: fotoMejorada.uri }} style={styles.previewImagen} />
-              </Pressable>
-              <View style={styles.previewAcciones}>
-                <BouncyPressable style={styles.botonGuardarMejora} onPress={guardarMejora}>
-                  <Text style={styles.textoBotonAccion}>{T.seleccion.guardarEnCarrete}</Text>
-                </BouncyPressable>
-                <Pressable style={styles.botonDescartarMejora} onPress={descartarMejora}>
-                  <Text style={styles.textoBotonVolver}>{T.comun.descartar}</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
-
-          <View style={styles.accionesContenedor}>
-            <BouncyPressable style={styles.botonAccion} onPress={compartir}>
-              <Text style={styles.textoBotonAccion}>{T.seleccion.compartir}</Text>
-            </BouncyPressable>
-
-            <BouncyPressable
-              style={styles.botonBrillo}
-              onPress={retocar}
-              disabled={mejorando}
-            >
-              <Text style={styles.textoBotonBrillo}>
-                {mejorando ? T.seleccion.mejorando : T.seleccion.darBrillo}
+        {paso === 'foto' ? (
+          <ScrollView contentContainerStyle={styles.scrollContenido}>
+            <Text style={styles.titulo}>{T.seleccion.laElegida}</Text>
+            <Pressable onPress={() => setMostrarEtiquetaModal(true)} hitSlop={6}>
+              <Text style={styles.etiquetaPill}>
+                {grupo.creationTime ? formatearEtiqueta(grupoId!, grupo.creationTime) : ''} ✏️
               </Text>
-            </BouncyPressable>
-            {mejorando && (
-              <Text style={styles.notaMejora}>{T.seleccion.preparandoMejora}</Text>
+            </Pressable>
+            <Pressable onPress={() => setFotoAmpliada(estado.ganadora!.uri)}>
+              <View style={styles.fotoGanadoraContenedor}>
+                <Image source={{ uri: estado.ganadora.uri }} style={styles.fotoGanadora} />
+                <View style={styles.coronaInsignia}>
+                  <Text style={styles.coronaTexto}>👑</Text>
+                </View>
+              </View>
+            </Pressable>
+
+            {guardadaEnAlbum && (
+              <Text style={styles.avisoGuardada}>{T.seleccion.guardadaEnAlbum}</Text>
             )}
 
-            <BouncyPressable
-              style={styles.botonDescartarTodoBoton}
-              onPress={borrarGrupoCompleto}
-              disabled={borrando}
-            >
-              <Text style={styles.textoDescartarTodoBoton}>{T.seleccion.ningunaBorrarTambien}</Text>
-            </BouncyPressable>
-          </View>
+            {mejorando && <Text style={styles.notaMejora}>{T.seleccion.mejorando}</Text>}
 
-          {resto.length > 0 && (
-            <View style={styles.extrasContenedor}>
-              <Text style={styles.contadorEspacio}>
-                {tamanoALiberar === null
-                  ? T.seleccion.calculandoEspacio
-                  : tamanoALiberar > 0
-                  ? T.seleccion.vasALiberar(formatearTamano(tamanoALiberar))
-                  : T.seleccion.sinEspacioALiberar}
-              </Text>
+            {fotoMejorada && (
+              <View style={styles.previewContenedor}>
+                <Text style={styles.previewEtiqueta}>{T.seleccion.versionMejorada}</Text>
+                <Pressable onPress={() => setFotoAmpliada(fotoMejorada.uri)}>
+                  <Image source={{ uri: fotoMejorada.uri }} style={styles.previewImagen} />
+                </Pressable>
+                <View style={styles.previewAcciones}>
+                  <BouncyPressable style={styles.botonGuardarMejora} onPress={guardarMejora}>
+                    <Text style={styles.textoBotonAccion}>{T.seleccion.guardarEnCarrete}</Text>
+                  </BouncyPressable>
+                  <Pressable style={styles.botonDescartarMejora} onPress={descartarMejora}>
+                    <Text style={styles.textoBotonVolver}>{T.comun.descartar}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
-              {resto.length >= 1 && (
-                <>
-                  <Text style={styles.previewEtiqueta}>
-                    {resto.length === 1
-                      ? T.seleccion.seBorraraEsta
-                      : T.seleccion.algunaMas}
-                  </Text>
-                  {resto.length >= 2 && (
-                    <Text style={styles.extrasSubtitulo}>{T.seleccion.eligeConservar}</Text>
-                  )}
-                  <Text
-                    style={[
-                      styles.pistaZoomExtras,
-                      !coachmarkVisto('extras_lupa') && styles.pistaZoomExtrasDestacada,
-                    ]}
-                  >
-                    {T.seleccion.pistaLupa}
-                  </Text>
-
-                  <View style={styles.extrasFilaMiniaturas}>
-                    {resto.map((foto) => {
-                      const seleccionada = extrasSeleccionadas.includes(foto.id);
-                      const esBorrosa = idsBorrosas.has(foto.id);
-                      return (
-                        <Pressable key={foto.id} onPress={() => alternarExtra(foto.id)}>
-                          <View
-                            style={[
-                              styles.miniaturaExtraContenedor,
-                              seleccionada && styles.miniaturaExtraContenedorActiva,
-                            ]}
-                          >
-                            <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
-                            {esBorrosa && (
-                              <View style={styles.miniaturaExtraBorrosa}>
-                                <Text style={styles.miniaturaExtraBorrosaTexto}>{T.seleccion.borrosa}</Text>
-                              </View>
-                            )}
-
-                            {seleccionada && (
-                              <View style={styles.miniaturaExtraCheck}>
-                                <Text style={styles.miniaturaExtraCheckTexto}>✓</Text>
-                              </View>
-                            )}
-                            <Pressable
-                              style={styles.miniaturaExtraLupa}
-                              onPress={() => {
-                                marcarCoachmarkVisto('extras_lupa');
-                                setFotoAmpliada(foto.uri);
-                              }}
-                              hitSlop={8}
-                            >
-                              <Text style={styles.miniaturaExtraLupaTexto}>🔍</Text>
-                            </Pressable>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
-
-              {extrasSeleccionadas.length > 0 && (
-                <BouncyPressable
-                  style={styles.botonGuardarExtras}
-                  onPress={guardarExtrasYBorrarResto}
-                  disabled={borrando}
-                >
-                  <Text style={styles.textoBotonAccion}>
-                    {borrando
-                      ? T.seleccion.eliminando
-                      : T.seleccion.guardarExtras(extrasSeleccionadas.length)}
-                  </Text>
-                </BouncyPressable>
-              )}
-
-              <BouncyPressable
-                style={styles.botonPeligro}
-                onPress={borrarResto}
-                disabled={borrando}
-              >
-                <Text style={styles.textoBotonPeligro}>
-                  {borrando ? T.seleccion.eliminando : T.seleccion.borrarLasDemas(resto.length)}
-                </Text>
+            <View style={styles.accionesContenedor}>
+              <BouncyPressable style={styles.botonAccion} onPress={compartir}>
+                <Text style={styles.textoBotonAccion}>{T.seleccion.compartir}</Text>
               </BouncyPressable>
 
-              <Text style={styles.textoSeguridad}>{T.seleccion.recuperar30Dias}</Text>
+              {resto.length > 0 ? (
+                <BouncyPressable style={styles.botonSecundario} onPress={() => setPaso('otras')}>
+                  <Text style={styles.textoBotonSecundario}>
+                    {T.seleccion.seguirConOtras(resto.length)}
+                  </Text>
+                </BouncyPressable>
+              ) : (
+                <BouncyPressable style={styles.botonSecundario} onPress={() => router.back()}>
+                  <Text style={styles.textoBotonSecundario}>{T.comun.volverAMisFotos}</Text>
+                </BouncyPressable>
+              )}
             </View>
-          )}
 
-          <Pressable style={styles.botonVolver} onPress={() => router.back()}>
-            <Text style={styles.textoBotonVolver}>{T.comun.volverAMisFotos}</Text>
-          </Pressable>
-        </ScrollView>
+            <Pressable
+              style={styles.botonVolver}
+              onPress={abrirMasOpciones}
+              disabled={borrando || mejorando}
+              hitSlop={8}
+            >
+              <Text style={styles.textoBotonVolver}>{T.seleccion.masOpciones}</Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
+          <ScrollView contentContainerStyle={styles.scrollContenido}>
+            <Pressable
+              style={styles.botonSalirTorneo}
+              onPress={() => setPaso('foto')}
+              disabled={borrando}
+              hitSlop={10}
+            >
+              <Text style={styles.botonSalirTorneoTexto}>{T.seleccion.volverAMiFoto}</Text>
+            </Pressable>
+
+            <Text style={styles.titulo}>{T.seleccion.otrasTitulo(resto.length)}</Text>
+            <Text style={styles.pista}>{T.seleccion.otrasSubtitulo}</Text>
+            <Text
+              style={[
+                styles.pistaZoomExtras,
+                !coachmarkVisto('extras_lupa') && styles.pistaZoomExtrasDestacada,
+              ]}
+            >
+              {T.seleccion.pistaLupa}
+            </Text>
+
+            <View style={styles.extrasFilaMiniaturas}>
+              {resto.map((foto) => {
+                const seleccionada = extrasSeleccionadas.includes(foto.id);
+                const esBorrosa = idsBorrosas.has(foto.id);
+                return (
+                  <Pressable
+                    key={foto.id}
+                    onPress={() => alternarExtra(foto.id)}
+                    disabled={borrando}
+                  >
+                    <View
+                      style={[
+                        styles.miniaturaExtraContenedor,
+                        seleccionada && styles.miniaturaExtraContenedorActiva,
+                      ]}
+                    >
+                      <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
+                      {esBorrosa && (
+                        <View style={styles.miniaturaExtraBorrosa}>
+                          <Text style={styles.miniaturaExtraBorrosaTexto}>{T.seleccion.borrosa}</Text>
+                        </View>
+                      )}
+
+                      {/* Corazón (no ✓) para que se lea como "me la quedo",
+                          igual que el corazón del torneo. */}
+                      {seleccionada && (
+                        <View style={styles.miniaturaExtraCheck}>
+                          <Text style={styles.miniaturaExtraCheckTexto}>♥</Text>
+                        </View>
+                      )}
+                      <Pressable
+                        style={styles.miniaturaExtraLupa}
+                        onPress={() => {
+                          marcarCoachmarkVisto('extras_lupa');
+                          setFotoAmpliada(foto.uri);
+                        }}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.miniaturaExtraLupaTexto}>🔍</Text>
+                      </Pressable>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {!borradoHecho && (numABorrar === 0 || tamanoALiberar !== 0) && (
+              <Text style={styles.contadorEspacio}>
+                {numABorrar === 0
+                  ? T.seleccion.sinEspacioALiberar
+                  : tamanoALiberar === null
+                  ? T.seleccion.calculandoEspacio
+                  : T.seleccion.vasALiberar(formatearTamano(tamanoALiberar))}
+              </Text>
+            )}
+
+            <View style={styles.accionesContenedor}>
+              {borradoHecho ? (
+                <BouncyPressable style={styles.botonAccion} onPress={() => router.back()}>
+                  <Text style={styles.textoBotonAccion}>{T.comun.volverAMisFotos}</Text>
+                </BouncyPressable>
+              ) : numABorrar > 0 ? (
+                <>
+                  <Text style={styles.textoSeguridad}>{TEXTO_RECUPERACION}</Text>
+                  <BouncyPressable
+                    style={styles.botonAccion}
+                    onPress={guardarExtrasYBorrarResto}
+                    disabled={borrando}
+                  >
+                    <Text style={styles.textoBotonAccion}>
+                      {borrando ? T.seleccion.eliminando : T.seleccion.borrarN(numABorrar)}
+                    </Text>
+                  </BouncyPressable>
+                  <BouncyPressable
+                    style={styles.botonSecundario}
+                    onPress={() => router.back()}
+                    disabled={borrando}
+                  >
+                    <Text style={styles.textoBotonSecundario}>{T.seleccion.quedarmelasTodas}</Text>
+                  </BouncyPressable>
+                </>
+              ) : (
+                <BouncyPressable style={styles.botonAccion} onPress={() => router.back()}>
+                  <Text style={styles.textoBotonAccion}>{T.seleccion.quedarmelasTodas}</Text>
+                </BouncyPressable>
+              )}
+            </View>
+          </ScrollView>
+        )}
         <ZoomablePhotoModal
           uri={fotoAmpliada}
           visible={!!fotoAmpliada}
@@ -982,14 +1013,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
-  botonBrillo: {
+  botonSecundario: {
     backgroundColor: COLORES.acentoSuave,
     paddingVertical: 14,
     borderRadius: 24,
     alignItems: 'center',
-    marginTop: 4,
   },
-  textoBotonBrillo: {
+  textoBotonSecundario: {
     color: COLORES.acentoOscuro,
     fontWeight: '600',
     fontSize: 15,
@@ -999,32 +1029,7 @@ const styles = StyleSheet.create({
     color: COLORES.textoSecundario,
     fontSize: 12,
     fontStyle: 'italic',
-    marginTop: -4,
-  },
-  botonDescartarTodoBoton: {
-    backgroundColor: COLORES.peligroSuave,
-    paddingVertical: 14,
-    borderRadius: 24,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  textoDescartarTodoBoton: {
-    color: COLORES.peligro,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  botonPeligro: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: COLORES.peligro,
-    paddingVertical: 14,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  textoBotonPeligro: {
-    color: COLORES.peligro,
-    fontWeight: '600',
-    fontSize: 15,
+    marginBottom: 16,
   },
   avisoGuardada: {
     color: COLORES.acento,
@@ -1034,62 +1039,47 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   textoSeguridad: {
-    color: COLORES.textoSecundario,
-    fontSize: 12,
+    color: COLORES.texto,
+    fontSize: 13,
     textAlign: 'center',
-    marginTop: 8,
   },
 
   // --- Selector de "quédate con alguna más" ---
-  extrasContenedor: {
-    width: '100%',
-    backgroundColor: COLORES.superficie,
-    borderWidth: 1,
-    borderColor: COLORES.borde,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 20,
-  },
-  extrasSubtitulo: {
-    color: COLORES.textoSecundario,
-    fontSize: 13,
-    marginBottom: 4,
-    marginTop: -6,
-  },
   extrasFilaMiniaturas: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'center',
+    gap: 12,
     marginTop: 12,
     marginBottom: 14,
   },
   miniaturaExtraContenedor: {
     position: 'relative',
-    borderRadius: 10,
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 3,
     borderColor: 'transparent',
   },
   miniaturaExtraContenedorActiva: {
     borderColor: COLORES.acento,
   },
   miniaturaExtra: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
+    width: 96,
+    height: 96,
+    borderRadius: 10,
   },
   miniaturaExtraLupa: {
     position: 'absolute',
     bottom: -6,
     right: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   miniaturaExtraLupaTexto: {
-    fontSize: 11,
+    fontSize: 14,
   },
   miniaturaExtraBorrosa: {
     position: 'absolute',
@@ -1102,7 +1092,7 @@ const styles = StyleSheet.create({
   },
   miniaturaExtraBorrosaTexto: {
     color: '#FFFFFF',
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '700',
   },
   miniaturaExtraDebug: {
@@ -1123,23 +1113,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORES.acento,
     alignItems: 'center',
     justifyContent: 'center',
   },
   miniaturaExtraCheckTexto: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '700',
-  },
-  botonGuardarExtras: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 12,
-    borderRadius: 24,
-    alignItems: 'center',
   },
 
   botonVolver: {
