@@ -13,7 +13,13 @@ import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'expo-image';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
-import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
+import {
+  contarFotosEnPeriodo,
+  generarPeriodos,
+  mesesDeTrimestre,
+  Periodo,
+  UMBRAL_DIVIDIR_EN_MESES,
+} from '@/lib/periodos';
 import { T } from '@/lib/i18n';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 
@@ -89,16 +95,23 @@ export default function ExploreScreen() {
 
         // El conteo de cada periodo es barato (no descarga fotos), así que
         // se piden todos a la vez en paralelo.
-        const conConteo = await Promise.all(
-          base.map(async (periodo) => {
-            const conteo = await contarFotosEnPeriodo(periodo);
-            return {
-              ...periodo,
-              totalFotos: conteo.total,
-              portadaUri: conteo.portadaUri,
-            };
-          })
-        );
+        const contar = async (periodo: Periodo): Promise<PeriodoConConteo> => {
+          const conteo = await contarFotosEnPeriodo(periodo);
+          return { ...periodo, totalFotos: conteo.total, portadaUri: conteo.portadaUri };
+        };
+        const trimestres = await Promise.all(base.map(contar));
+
+        // Los trimestres con demasiadas fotos se sustituyen por sus meses
+        // (en su mismo sitio de la lista), contados igual de barato.
+        const conConteo = (
+          await Promise.all(
+            trimestres.map((t) =>
+              t.totalFotos > UMBRAL_DIVIDIR_EN_MESES
+                ? Promise.all(mesesDeTrimestre(t).map(contar))
+                : Promise.resolve([t])
+            )
+          )
+        ).flat();
 
         setPeriodos(conConteo.filter((p) => p.totalFotos > 0));
       } catch {
@@ -121,11 +134,16 @@ export default function ExploreScreen() {
     });
   };
 
+  // Un mes cuenta como revisado si lo está él o si se revisó entero su
+  // trimestre antes de que se partiera en meses.
+  const estaRevisado = (p: PeriodoConConteo) =>
+    esRevisado(p.id) || (!!p.trimestreId && esRevisado(p.trimestreId));
+
   // No revisados primero, revisados al final (mismo criterio que en Home
   // y en los grupos dentro de cada periodo).
   const periodosOrdenados = [...periodos].sort((a, b) => {
-    const aRevisado = esRevisado(a.id);
-    const bRevisado = esRevisado(b.id);
+    const aRevisado = estaRevisado(a);
+    const bRevisado = estaRevisado(b);
     if (aRevisado === bRevisado) return 0;
     return aRevisado ? 1 : -1;
   });
@@ -162,7 +180,7 @@ export default function ExploreScreen() {
           style={styles.lista}
           extraData={tick}
           renderItem={({ item }) => {
-            const revisado = esRevisado(item.id);
+            const revisado = estaRevisado(item);
             return (
               <BouncyPressable
                 style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}
