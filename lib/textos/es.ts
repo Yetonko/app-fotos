@@ -254,6 +254,29 @@ export const es = {
     borradasTodas: 'Se han borrado todas las fotos de este momento.',
   },
 
+  // Publicar varias fotos de un mismo momento (carrusel de Instagram)
+  carrusel: {
+    enlace: 'Publicar varias (carrusel)',
+    titulo: 'Elige las fotos del carrusel',
+    subtitulo: (max: number) =>
+      `Tu elegida va la primera. Toca las que quieras añadir, hasta ${max} en total.`,
+    contador: (n: number) => `${n} ${n === 1 ? 'foto' : 'fotos'} en tu carrusel`,
+    preparar: (n: number) => `Preparar carrusel (${n} fotos)`,
+    preparando: 'Preparando...',
+    maximoTitulo: 'Ya tienes el máximo',
+    maximoTexto: (max: number) => `Instagram admite hasta ${max} fotos por carrusel.`,
+    nombreAlbum: (momento: string) => `Fondly · ${momento}`,
+    listoTitulo: '¡Tu carrusel está listo!',
+    listoTexto: (n: number, album: string) =>
+      `Tus ${n} fotos están juntas en el álbum «${album}». No las marcaremos para borrar.\n\nEn Instagram:\n1. Toca + y elige Publicación\n2. Toca Seleccionar varias\n3. Abre el álbum «${album}»`,
+    recordatorio: (album: string) => `✓ Carrusel listo en el álbum «${album}»`,
+    abrirInstagram: 'Abrir Instagram',
+    sinInstagramTitulo: 'No encontramos Instagram',
+    sinInstagramTexto: (album: string) =>
+      `Abre tu red social y busca tus fotos en el álbum «${album}».`,
+    error: 'No hemos podido preparar el carrusel. Inténtalo de nuevo.',
+  },
+
   periodos: {
     titulo: 'Épocas',
     subtitulo: 'Haz sitio repasando tus fotos antiguas',
