@@ -78,6 +78,7 @@ export default function HomeScreen() {
   // Ajustes y se reintenta solo al volver a la app.
   const [sinPermiso, setSinPermiso] = useState(false);
   const [intentoEscaneo, setIntentoEscaneo] = useState(0);
+  const escaneandoRef = useRef(false);
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
   // Uri de la primera foto del grupo que se está analizando ahora mismo,
@@ -135,78 +136,86 @@ export default function HomeScreen() {
 
   useEffect(() => {
     (async () => {
-      let yaVioOnboarding = true;
+      // Un solo escaneo a la vez: volver varias veces a la app desde
+      // Ajustes no debe lanzar escaneos solapados.
+      if (escaneandoRef.current) return;
+      escaneandoRef.current = true;
       try {
-        yaVioOnboarding = (await AsyncStorage.getItem(CLAVE_ONBOARDING_VISTO)) === 'true';
-      } catch {
-        // Si falla la lectura, asumimos que ya lo vio para no dejar a
-        // alguien atrapado en el onboarding por un fallo de almacenamiento.
+        let yaVioOnboarding = true;
+        try {
+          yaVioOnboarding = (await AsyncStorage.getItem(CLAVE_ONBOARDING_VISTO)) === 'true';
+        } catch {
+          // Si falla la lectura, asumimos que ya lo vio para no dejar a
+          // alguien atrapado en el onboarding por un fallo de almacenamiento.
+        }
+        if (!yaVioOnboarding) {
+          router.replace('/bienvenida');
+          return;
+        }
+
+        await inicializarRevisados();
+        await inicializarEtiquetas();
+        await inicializarProgreso();
+        const esp = await inicializarEspacio();
+        setEspacio(esp);
+
+        const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
+
+        if (permisoStatus !== 'granted') {
+          setSinPermiso(true);
+          return;
+        }
+        setSinPermiso(false);
+
+        setStatus('Buscando momentos en tu carrete...');
+
+        const resultado = await MediaLibrary.getAssetsAsync({
+          mediaType: 'photo',
+          first: 200,
+          sortBy: [[MediaLibrary.SortBy.creationTime, false]],
+        });
+
+        setTotalFotos(resultado.totalCount);
+        setStatus('Reconociendo tus momentos...');
+        // Pausa corta a propósito: agrupar por tiempo ya ha terminado dentro
+        // de detectarRafagas (es prácticamente instantáneo), pero sin esto React agruparía este cambio de estado
+        // con el siguiente y el usuario nunca llegaría a ver esta fase.
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        const gruposConDistancias: GrupoConDistancias[] = [];
+
+        await detectarRafagas(resultado.assets, {
+          onProgreso: (indice, total, primeraFotoUri) => {
+            setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
+            if (primeraFotoUri) {
+              setPilaEscaneo((pila) =>
+                [primeraFotoUri, ...pila.filter((u) => u !== primeraFotoUri)].slice(0, 3)
+              );
+            }
+          },
+          onGrupo: async (grupo) => {
+            const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
+              id: foto.id,
+              uri: foto.uri,
+            }));
+
+            registrarGrupo(grupo.grupoId, candidatas, [], grupo.fotos[0]?.creationTime);
+
+            const { fotosConUri, ...grupoBase } = grupo;
+            gruposConDistancias.push({
+              ...grupoBase,
+              candidatas,
+              descartadas: [],
+            });
+          },
+        });
+
+        setGrupos(gruposConDistancias);
+        setPilaEscaneo([]);
+        setStatus('¡Listo!');
+      } finally {
+        escaneandoRef.current = false;
       }
-      if (!yaVioOnboarding) {
-        router.replace('/bienvenida');
-        return;
-      }
-
-      await inicializarRevisados();
-      await inicializarEtiquetas();
-      await inicializarProgreso();
-      const esp = await inicializarEspacio();
-      setEspacio(esp);
-
-      const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
-
-      if (permisoStatus !== 'granted') {
-        setSinPermiso(true);
-        return;
-      }
-      setSinPermiso(false);
-
-      setStatus('Buscando momentos en tu carrete...');
-
-      const resultado = await MediaLibrary.getAssetsAsync({
-        mediaType: 'photo',
-        first: 200,
-        sortBy: [[MediaLibrary.SortBy.creationTime, false]],
-      });
-
-      setTotalFotos(resultado.totalCount);
-      setStatus('Reconociendo tus momentos...');
-      // Pausa corta a propósito: agrupar por tiempo ya ha terminado dentro
-      // de detectarRafagas (es prácticamente instantáneo), pero sin esto React agruparía este cambio de estado
-      // con el siguiente y el usuario nunca llegaría a ver esta fase.
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const gruposConDistancias: GrupoConDistancias[] = [];
-
-      await detectarRafagas(resultado.assets, {
-        onProgreso: (indice, total, primeraFotoUri) => {
-          setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
-          if (primeraFotoUri) {
-            setPilaEscaneo((pila) =>
-              [primeraFotoUri, ...pila.filter((u) => u !== primeraFotoUri)].slice(0, 3)
-            );
-          }
-        },
-        onGrupo: async (grupo) => {
-          const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
-            id: foto.id,
-            uri: foto.uri,
-          }));
-
-          registrarGrupo(grupo.grupoId, candidatas, [], grupo.fotos[0]?.creationTime);
-
-          const { fotosConUri, ...grupoBase } = grupo;
-          gruposConDistancias.push({
-            ...grupoBase,
-            candidatas,
-            descartadas: [],
-          });
-        },
-      });
-
-      setGrupos(gruposConDistancias);
-      setPilaEscaneo([]);
-      setStatus('¡Listo!');
     })();
   }, [intentoEscaneo]);
 
@@ -337,7 +346,7 @@ export default function HomeScreen() {
         <View style={styles.sinPermisoContenedor}>
           <Text style={styles.sinPermisoTitulo}>{T.home.sinPermisoTitulo}</Text>
           <Text style={styles.sinPermisoTexto}>{T.home.sinPermisoTexto(DISPOSITIVO)}</Text>
-          <Boton style={styles.sinPermisoBoton} onPress={() => Linking.openSettings()}>
+          <Boton style={styles.sinPermisoBoton} onPress={() => Linking.openSettings().catch(() => {})}>
             {T.home.abrirAjustes}
           </Boton>
         </View>

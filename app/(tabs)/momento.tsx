@@ -39,6 +39,9 @@ export default function MomentoScreen() {
 
   const [ampliadaId, setAmpliadaId] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
+  // Fotos ya copiadas al álbum Fondly en esta visita: si cierra el compartir
+  // y vuelve a publicar, no se copian otra vez (cada copia duplica la foto).
+  const guardadasEnAlbumRef = useRef(new Set<string>());
 
   // Carga las fotos cada vez que cambia la ventana elegida.
   useEffect(() => {
@@ -108,7 +111,10 @@ export default function MomentoScreen() {
         // juntas allí y, solo cuando cierre el aviso, abrir el compartir de
         // la primera (un aviso y el menú de compartir a la vez se pisan).
         for (const foto of ordenadas) {
-          await guardarEnAlbumFavoritas(foto.id);
+          if (guardadasEnAlbumRef.current.has(foto.id)) continue;
+          const ok = await guardarEnAlbumFavoritas(foto.id);
+          if (!ok) throw new Error('No se pudo guardar en el álbum');
+          guardadasEnAlbumRef.current.add(foto.id);
         }
         Alert.alert(T.momento.listasTitulo, T.momento.listasTexto(ordenadas.length), [
           {

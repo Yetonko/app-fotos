@@ -39,8 +39,10 @@ export const es = {
       boton: 'Borrar todas',
       nadaBorradoTitulo: 'No se ha borrado nada',
       nadaBorradoTexto: 'Tus fotos siguen en el carrete, no ha cambiado nada.',
-      errorTitulo: 'No hemos podido eliminar las fotos.',
-      errorTexto: 'Revisa los permisos e inténtalo de nuevo.',
+      // En iPhone, cancelar el aviso del sistema llega como "error": por
+      // eso este texto no culpa a nadie y dice lo único seguro.
+      errorTitulo: 'No se ha borrado nada',
+      errorTexto: 'Tus fotos siguen en el carrete. Si querías borrarlas, inténtalo de nuevo.',
     },
   },
 
