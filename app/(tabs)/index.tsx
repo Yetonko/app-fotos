@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Animated, FlatList, StyleSheet, Pressable, View, Text, Platform, Alert } from 'react-native';
+import {
+  Animated,
+  AppState,
+  FlatList,
+  Linking,
+  StyleSheet,
+  Pressable,
+  View,
+  Text,
+  Platform,
+  Alert,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,23 +33,14 @@ import {
 import { EtiquetaModal } from '@/components/etiqueta-modal';
 import { CLAVE_ONBOARDING_VISTO } from '@/lib/onboarding';
 import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
 import { fechaConDia } from '@/lib/idioma';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 import { Image } from 'expo-image';
 
 // --- Sistema de diseño (paleta cálida, suavizada hacia coral-rosado) -----
 // Centralizado aquí para reutilizar los mismos valores en seleccion.tsx.
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
-// -------------------------------------------------------------------------
 
 // Igual que en bienvenida.tsx: "iPhone" en iOS, "móvil" en cualquier otro
 // caso (Android), sin necesidad de ninguna librería nueva.
@@ -72,6 +74,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [status, setStatus] = useState('Buscando tus mejores momentos...');
+  // Sin permiso de fotos no hay nada que escanear: se enseña cómo darlo en
+  // Ajustes y se reintenta solo al volver a la app.
+  const [sinPermiso, setSinPermiso] = useState(false);
+  const [intentoEscaneo, setIntentoEscaneo] = useState(0);
+  const escaneandoRef = useRef(false);
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
   // Uri de la primera foto del grupo que se está analizando ahora mismo,
@@ -129,79 +136,97 @@ export default function HomeScreen() {
 
   useEffect(() => {
     (async () => {
-      let yaVioOnboarding = true;
+      // Un solo escaneo a la vez: volver varias veces a la app desde
+      // Ajustes no debe lanzar escaneos solapados.
+      if (escaneandoRef.current) return;
+      escaneandoRef.current = true;
       try {
-        yaVioOnboarding = (await AsyncStorage.getItem(CLAVE_ONBOARDING_VISTO)) === 'true';
-      } catch {
-        // Si falla la lectura, asumimos que ya lo vio para no dejar a
-        // alguien atrapado en el onboarding por un fallo de almacenamiento.
+        let yaVioOnboarding = true;
+        try {
+          yaVioOnboarding = (await AsyncStorage.getItem(CLAVE_ONBOARDING_VISTO)) === 'true';
+        } catch {
+          // Si falla la lectura, asumimos que ya lo vio para no dejar a
+          // alguien atrapado en el onboarding por un fallo de almacenamiento.
+        }
+        if (!yaVioOnboarding) {
+          router.replace('/bienvenida');
+          return;
+        }
+
+        await inicializarRevisados();
+        await inicializarEtiquetas();
+        await inicializarProgreso();
+        const esp = await inicializarEspacio();
+        setEspacio(esp);
+
+        const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
+
+        if (permisoStatus !== 'granted') {
+          setSinPermiso(true);
+          return;
+        }
+        setSinPermiso(false);
+
+        setStatus('Buscando momentos en tu carrete...');
+
+        const resultado = await MediaLibrary.getAssetsAsync({
+          mediaType: 'photo',
+          first: 200,
+          sortBy: [[MediaLibrary.SortBy.creationTime, false]],
+        });
+
+        setTotalFotos(resultado.totalCount);
+        setStatus('Reconociendo tus momentos...');
+        // Pausa corta a propósito: agrupar por tiempo ya ha terminado dentro
+        // de detectarRafagas (es prácticamente instantáneo), pero sin esto React agruparía este cambio de estado
+        // con el siguiente y el usuario nunca llegaría a ver esta fase.
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        const gruposConDistancias: GrupoConDistancias[] = [];
+
+        await detectarRafagas(resultado.assets, {
+          onProgreso: (indice, total, primeraFotoUri) => {
+            setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
+            if (primeraFotoUri) {
+              setPilaEscaneo((pila) =>
+                [primeraFotoUri, ...pila.filter((u) => u !== primeraFotoUri)].slice(0, 3)
+              );
+            }
+          },
+          onGrupo: async (grupo) => {
+            const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
+              id: foto.id,
+              uri: foto.uri,
+            }));
+
+            registrarGrupo(grupo.grupoId, candidatas, [], grupo.fotos[0]?.creationTime);
+
+            const { fotosConUri, ...grupoBase } = grupo;
+            gruposConDistancias.push({
+              ...grupoBase,
+              candidatas,
+              descartadas: [],
+            });
+          },
+        });
+
+        setGrupos(gruposConDistancias);
+        setPilaEscaneo([]);
+        setStatus('¡Listo!');
+      } finally {
+        escaneandoRef.current = false;
       }
-      if (!yaVioOnboarding) {
-        router.replace('/bienvenida');
-        return;
-      }
-
-      await inicializarRevisados();
-      await inicializarEtiquetas();
-      await inicializarProgreso();
-      const esp = await inicializarEspacio();
-      setEspacio(esp);
-
-      const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
-
-      if (permisoStatus !== 'granted') {
-        setStatus('No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes.');
-        return;
-      }
-
-      setStatus('Buscando momentos en tu carrete...');
-
-      const resultado = await MediaLibrary.getAssetsAsync({
-        mediaType: 'photo',
-        first: 200,
-        sortBy: [[MediaLibrary.SortBy.creationTime, false]],
-      });
-
-      setTotalFotos(resultado.totalCount);
-      setStatus('Reconociendo tus momentos...');
-      // Pausa corta a propósito: agrupar por tiempo ya ha terminado dentro
-      // de detectarRafagas (es prácticamente instantáneo), pero sin esto React agruparía este cambio de estado
-      // con el siguiente y el usuario nunca llegaría a ver esta fase.
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const gruposConDistancias: GrupoConDistancias[] = [];
-
-      await detectarRafagas(resultado.assets, {
-        onProgreso: (indice, total, primeraFotoUri) => {
-          setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
-          if (primeraFotoUri) {
-            setPilaEscaneo((pila) =>
-              [primeraFotoUri, ...pila.filter((u) => u !== primeraFotoUri)].slice(0, 3)
-            );
-          }
-        },
-        onGrupo: async (grupo) => {
-          const candidatas: CandidataConUri[] = grupo.fotosConUri.map((foto) => ({
-            id: foto.id,
-            uri: foto.uri,
-          }));
-
-          registrarGrupo(grupo.grupoId, candidatas, [], grupo.fotos[0]?.creationTime);
-
-          const { fotosConUri, ...grupoBase } = grupo;
-          gruposConDistancias.push({
-            ...grupoBase,
-            candidatas,
-            descartadas: [],
-          });
-        },
-      });
-
-      setGrupos(gruposConDistancias);
-      setPilaEscaneo([]);
-      setStatus('¡Listo!');
     })();
-  }, []);
+  }, [intentoEscaneo]);
+
+  // Al volver de Ajustes (la app pasa a primer plano), se vuelve a intentar.
+  useEffect(() => {
+    if (!sinPermiso) return;
+    const sub = AppState.addEventListener('change', (estadoApp) => {
+      if (estadoApp === 'active') setIntentoEscaneo((n) => n + 1);
+    });
+    return () => sub.remove();
+  }, [sinPermiso]);
 
   const seleccionarGrupo = async (grupoId: string) => {
     const { estado, seleccionesUsadas, diasRestantesCiclo } = await estadoUso();
@@ -297,7 +322,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>Fondly</Text>
+      <Text style={styles.titulo}>{T.home.titulo}</Text>
       <Text style={styles.insigniaPrivacidad}>{T.home.insigniaPrivacidad(DISPOSITIVO)}</Text>
 
       {status === '¡Listo!' && (
@@ -317,7 +342,17 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {status !== '¡Listo!' && (
+      {sinPermiso && (
+        <View style={styles.sinPermisoContenedor}>
+          <Text style={styles.sinPermisoTitulo}>{T.home.sinPermisoTitulo}</Text>
+          <Text style={styles.sinPermisoTexto}>{T.home.sinPermisoTexto(DISPOSITIVO)}</Text>
+          <Boton style={styles.sinPermisoBoton} onPress={() => Linking.openSettings().catch(() => {})}>
+            {T.home.abrirAjustes}
+          </Boton>
+        </View>
+      )}
+
+      {!sinPermiso && status !== '¡Listo!' && (
         <View style={styles.escaneoContenedor}>
           {pilaEscaneo.length > 0 && (
             <View style={styles.pilaContenedor}>
@@ -364,6 +399,12 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.grupoId}
         style={styles.lista}
         extraData={tick}
+        ListEmptyComponent={
+          <View style={styles.vacioContenedor}>
+            <Text style={styles.vacioTitulo}>{T.home.vacioTitulo}</Text>
+            <Text style={styles.vacioTexto}>{T.home.vacioTexto}</Text>
+          </View>
+        }
         renderItem={({ item, index }) => {
           const ganadora = obtenerGanadora(item.grupoId);
           const portada = ganadora?.uri ?? item.candidatas[0]?.uri;
@@ -393,18 +434,17 @@ export default function HomeScreen() {
                 </Text>
 
                 {item.candidatas.length > 0 && (
-                  <BouncyPressable
-                    style={ganadora ? styles.botonSecundario : styles.botonGrupo}
+                  <Boton
+                    compacto
+                    variante={ganadora ? 'secundario' : 'principal'}
                     onPress={() => seleccionarGrupo(item.grupoId)}
                   >
-                    <Text style={ganadora ? styles.textoBotonSecundario : styles.textoBotonGrupo}>
-                      {ganadora
-                        ? T.home.volverAElegir
-                        : item.candidatas.length === 1
-                        ? T.home.revisarYLimpiar
-                        : T.comun.elegirMejorFoto}
-                    </Text>
-                  </BouncyPressable>
+                    {ganadora
+                      ? T.home.volverAElegir
+                      : item.candidatas.length === 1
+                      ? T.home.revisarYLimpiar
+                      : T.comun.elegirMejorFoto}
+                  </Boton>
                 )}
 
               </View>
@@ -437,18 +477,55 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  vacioContenedor: {
+    paddingVertical: 40,
+    paddingHorizontal: 10,
+    gap: 10,
+  },
+  vacioTitulo: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORES.texto,
+    textAlign: 'center',
+  },
+  vacioTexto: {
+    fontSize: 17,
+    lineHeight: 24,
+    color: COLORES.textoSecundario,
+    textAlign: 'center',
+  },
+  sinPermisoContenedor: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+    gap: 14,
+  },
+  sinPermisoTitulo: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORES.texto,
+    textAlign: 'center',
+  },
+  sinPermisoTexto: {
+    fontSize: 17,
+    color: COLORES.texto,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  sinPermisoBoton: {
+    marginTop: 10,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 20,
     backgroundColor: COLORES.fondo,
   },
   titulo: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 8,
     color: COLORES.texto,
     fontSize: 28,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   cabeceraGanancia: {
     alignItems: 'center',
@@ -462,7 +539,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   espacioCritico: {
-    color: COLORES.acento,
+    color: COLORES.acentoTexto,
   },
   gananciaTexto: {
     fontSize: 15,
@@ -488,7 +565,7 @@ const styles = StyleSheet.create({
   },
   textoDevReset: {
     color: COLORES.textoSecundario,
-    fontSize: 11,
+    fontSize: 13,
     textDecorationLine: 'underline',
   },
   status: {
@@ -561,7 +638,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.35)',
-    shadowColor: '#D85A30',
+    shadowColor: COLORES.acentoOscuro,
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
@@ -615,7 +692,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tarjetaRevisada: {
-    opacity: 0.55,
+    opacity: 0.8,
   },
   portadaContenedor: {
     position: 'relative',
@@ -652,7 +729,7 @@ const styles = StyleSheet.create({
   tarjetaEtiqueta: {
     alignSelf: 'flex-start',
     color: COLORES.acentoOscuro,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     backgroundColor: COLORES.acentoSuave,
     paddingHorizontal: 10,
@@ -662,28 +739,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  botonGrupo: {
-    backgroundColor: COLORES.acento,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    alignSelf: 'flex-start',
-  },
-  botonSecundario: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    alignSelf: 'flex-start',
-  },
-  textoBotonGrupo: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  textoBotonSecundario: {
-    color: COLORES.acento,
-    fontWeight: '600',
-    fontSize: 13,
-  },
   botonDescartarGrupo: {
     alignSelf: 'flex-start',
     marginTop: 8,
@@ -691,7 +746,7 @@ const styles = StyleSheet.create({
   },
   textoDescartarGrupo: {
     color: COLORES.textoSecundario,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },

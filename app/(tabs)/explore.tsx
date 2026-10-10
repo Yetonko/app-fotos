@@ -13,22 +13,22 @@ import * as MediaLibrary from 'expo-media-library';
 import { Image } from 'expo-image';
 
 import { BouncyPressable } from '@/components/bouncy-pressable';
-import { contarFotosEnPeriodo, generarPeriodos, Periodo } from '@/lib/periodos';
+import {
+  contarFotosEnPeriodo,
+  generarPeriodos,
+  mesesDeTrimestre,
+  Periodo,
+  UMBRAL_DIVIDIR_EN_MESES,
+} from '@/lib/periodos';
+import { COLORES } from '@/constants/estilo';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { T } from '@/lib/i18n';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
+import { obtenerLiberadoTotal } from '@/lib/progreso';
+import { estimarTamanoRango, formatearTamano } from '@/lib/tamano';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
 // mismo patrón que ya usan esas pantallas.
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
 
 const DISPOSITIVO = Platform.OS === 'ios' ? 'iPhone' : T.comun.movil;
 
@@ -52,10 +52,15 @@ export default function ExploreScreen() {
   // Se incrementa al volver de periodo.tsx, para reflejar los periodos que
   // se hayan marcado como revisados mientras tanto.
   const [tick, setTick] = useState(0);
+  // Recompensa visible: todo lo liberado con Fondly hasta ahora.
+  const [liberado, setLiberado] = useState(0);
+  // Cuánto ocupa (aprox.) cada época, por id. Se va rellenando poco a poco.
+  const [tamanos, setTamanos] = useState<Record<string, number | null>>({});
 
   useFocusEffect(
     useCallback(() => {
       setTick((t) => t + 1);
+      obtenerLiberadoTotal().then(setLiberado);
     }, [])
   );
 
@@ -89,16 +94,23 @@ export default function ExploreScreen() {
 
         // El conteo de cada periodo es barato (no descarga fotos), así que
         // se piden todos a la vez en paralelo.
-        const conConteo = await Promise.all(
-          base.map(async (periodo) => {
-            const conteo = await contarFotosEnPeriodo(periodo);
-            return {
-              ...periodo,
-              totalFotos: conteo.total,
-              portadaUri: conteo.portadaUri,
-            };
-          })
-        );
+        const contar = async (periodo: Periodo): Promise<PeriodoConConteo> => {
+          const conteo = await contarFotosEnPeriodo(periodo);
+          return { ...periodo, totalFotos: conteo.total, portadaUri: conteo.portadaUri };
+        };
+        const trimestres = await Promise.all(base.map(contar));
+
+        // Los trimestres con demasiadas fotos se sustituyen por sus meses
+        // (en su mismo sitio de la lista), contados igual de barato.
+        const conConteo = (
+          await Promise.all(
+            trimestres.map((t) =>
+              t.totalFotos > UMBRAL_DIVIDIR_EN_MESES
+                ? Promise.all(mesesDeTrimestre(t).map(contar))
+                : Promise.resolve([t])
+            )
+          )
+        ).flat();
 
         setPeriodos(conConteo.filter((p) => p.totalFotos > 0));
       } catch {
@@ -108,6 +120,24 @@ export default function ExploreScreen() {
       }
     })();
   }, []);
+
+  // Estima el tamaño de cada época de una en una, después de pintar la lista,
+  // para que la pantalla aparezca enseguida y los "unos X GB" vayan llegando.
+  useEffect(() => {
+    if (periodos.length === 0) return;
+    let cancelado = false;
+    (async () => {
+      for (const p of periodos) {
+        if (cancelado) return;
+        const t = await estimarTamanoRango(p.id, p.desde, p.hasta, p.totalFotos);
+        if (cancelado) return;
+        setTamanos((actual) => ({ ...actual, [p.id]: t }));
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [periodos]);
 
   const tocarPeriodo = (periodo: PeriodoConConteo) => {
     router.push({
@@ -121,11 +151,16 @@ export default function ExploreScreen() {
     });
   };
 
+  // Un mes cuenta como revisado si lo está él o si se revisó entero su
+  // trimestre antes de que se partiera en meses.
+  const estaRevisado = (p: PeriodoConConteo) =>
+    esRevisado(p.id) || (!!p.trimestreId && esRevisado(p.trimestreId));
+
   // No revisados primero, revisados al final (mismo criterio que en Home
   // y en los grupos dentro de cada periodo).
   const periodosOrdenados = [...periodos].sort((a, b) => {
-    const aRevisado = esRevisado(a.id);
-    const bRevisado = esRevisado(b.id);
+    const aRevisado = estaRevisado(a);
+    const bRevisado = estaRevisado(b);
     if (aRevisado === bRevisado) return 0;
     return aRevisado ? 1 : -1;
   });
@@ -160,9 +195,20 @@ export default function ExploreScreen() {
           data={periodosOrdenados}
           keyExtractor={(item) => item.id}
           style={styles.lista}
-          extraData={tick}
+          extraData={[tick, tamanos]}
+          ListHeaderComponent={
+            liberado > 0 ? (
+              <View style={styles.liberadoCaja}>
+                <IconSymbol name="checkmark" size={26} color={COLORES.acentoOscuro} />
+                <Text style={styles.liberadoTexto}>
+                  {T.periodos.hasLiberado(formatearTamano(liberado))}
+                </Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => {
-            const revisado = esRevisado(item.id);
+            const revisado = estaRevisado(item);
+            const tamano = tamanos[item.id];
             return (
               <BouncyPressable
                 style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}
@@ -180,7 +226,14 @@ export default function ExploreScreen() {
                     {item.etiqueta}
                     {revisado ? T.comun.revisado : ''}
                   </Text>
-                  <Text style={styles.tarjetaConteo}>{formatearConteo(item.totalFotos)}</Text>
+                  <Text style={styles.tarjetaConteo}>
+                    {tamano
+                      ? T.periodos.conteoConTamano(
+                          formatearConteo(item.totalFotos),
+                          formatearTamano(tamano)
+                        )
+                      : formatearConteo(item.totalFotos)}
+                  </Text>
                   {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
                     <Text style={styles.tarjetaAviso}>{T.periodos.avisoMuchasFotos}</Text>
                   )}
@@ -195,19 +248,36 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
+  liberadoCaja: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORES.acentoSuave,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  liberadoTexto: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORES.acentoOscuro,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORES.fondo,
     paddingHorizontal: 20,
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORES.texto,
+    textAlign: 'left',
     marginBottom: 4,
   },
   subtitulo: {
-    fontSize: 14,
+    fontSize: 15,
     color: COLORES.textoSecundario,
     marginBottom: 20,
   },
@@ -273,7 +343,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tarjetaRevisada: {
-    opacity: 0.55,
+    opacity: 0.8,
   },
   tarjetaTitulo: {
     fontSize: 17,
@@ -287,9 +357,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tarjetaAviso: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORES.textoSecundario,
     marginTop: 6,
-    fontStyle: 'italic',
   },
 });

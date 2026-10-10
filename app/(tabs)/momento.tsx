@@ -8,22 +8,10 @@ import * as MediaLibrary from 'expo-media-library';
 import { fotosDeVentana, ordenarPorTiempo, VentanaMomento, FotoMomento } from '@/lib/momento-rapido';
 import { guardarEnAlbumFavoritas } from '@/lib/album';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
-import { BouncyPressable } from '@/components/bouncy-pressable';
+import { Boton } from '@/components/boton';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 
-// --- Sistema de diseño (mismos valores que el resto de pantallas) --------
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-  peligro: '#C15C4E',
-};
-// -------------------------------------------------------------------------
 
 const VENTANAS: { clave: VentanaMomento; etiqueta: string }[] = [
   { clave: '5min', etiqueta: T.momento.ventana5min },
@@ -51,6 +39,9 @@ export default function MomentoScreen() {
 
   const [ampliadaId, setAmpliadaId] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
+  // Fotos ya copiadas al álbum Fondly en esta visita: si cierra el compartir
+  // y vuelve a publicar, no se copian otra vez (cada copia duplica la foto).
+  const guardadasEnAlbumRef = useRef(new Set<string>());
 
   // Carga las fotos cada vez que cambia la ventana elegida.
   useEffect(() => {
@@ -87,6 +78,25 @@ export default function MomentoScreen() {
   // ── Publicar: guarda las marcadas en el álbum Fondly y abre el compartir
   //    de la primera. Con varias, iOS no garantiza el carrusel, así que la
   //    vía fiable es dejarlas juntas en el álbum y que ella las añada. ──
+  // Abre el compartir de una foto. Devuelve false si ella cierra el menú
+  // sin compartir (iOS lo indica; en Android no se sabe y se da por hecho).
+  const compartirFoto = async (foto: FotoMomento): Promise<boolean> => {
+    const info = await MediaLibrary.getAssetInfoAsync(foto.id);
+    const resultado = await Share.share({ url: info.localUri ?? foto.uri });
+    return resultado.action !== Share.dismissedAction;
+  };
+
+  // Solo tras compartir de verdad: si hay descartadas, ofrecer borrarlas
+  // (opcional). Si cerró el menú sin compartir, se queda donde estaba.
+  const trasCompartir = (compartido: boolean) => {
+    if (!compartido) return;
+    if (fotosDescartadas.length > 0) {
+      ofrecerBorrarDescartadas();
+    } else {
+      router.back();
+    }
+  };
+
   const publicar = async () => {
     if (fotosMarcadas.length === 0) return;
     setPublicando(true);
@@ -95,28 +105,29 @@ export default function MomentoScreen() {
 
       if (ordenadas.length === 1) {
         // Una sola: compartir directo, como en el torneo.
-        const info = await MediaLibrary.getAssetInfoAsync(ordenadas[0].id);
-        await Share.share({ url: info.localUri ?? ordenadas[0].uri });
+        trasCompartir(await compartirFoto(ordenadas[0]));
       } else {
-        // Varias: guardarlas todas en el álbum Fondly y abrir el compartir
-        // de la primera, avisando de que están juntas en el álbum.
+        // Varias: guardarlas todas en el álbum Fondly, avisar de que están
+        // juntas allí y, solo cuando cierre el aviso, abrir el compartir de
+        // la primera (un aviso y el menú de compartir a la vez se pisan).
         for (const foto of ordenadas) {
-          await guardarEnAlbumFavoritas(foto.id);
+          if (guardadasEnAlbumRef.current.has(foto.id)) continue;
+          const ok = await guardarEnAlbumFavoritas(foto.id);
+          if (!ok) throw new Error('No se pudo guardar en el álbum');
+          guardadasEnAlbumRef.current.add(foto.id);
         }
-        Alert.alert(
-          T.momento.listasTitulo,
-          T.momento.listasTexto(ordenadas.length),
-          [{ text: T.momento.entendido }]
-        );
-        const info = await MediaLibrary.getAssetInfoAsync(ordenadas[0].id);
-        await Share.share({ url: info.localUri ?? ordenadas[0].uri });
-      }
-
-      // Tras compartir, si hay descartadas, ofrecer borrarlas (opcional).
-      if (fotosDescartadas.length > 0) {
-        ofrecerBorrarDescartadas();
-      } else {
-        router.back();
+        Alert.alert(T.momento.listasTitulo, T.momento.listasTexto(ordenadas.length), [
+          {
+            text: T.momento.entendido,
+            onPress: async () => {
+              try {
+                trasCompartir(await compartirFoto(ordenadas[0]));
+              } catch {
+                Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
+              }
+            },
+          },
+        ]);
       }
     } catch {
       Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
@@ -137,9 +148,20 @@ export default function MomentoScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await MediaLibrary.deleteAssetsAsync(fotosDescartadas.map((f) => f.id));
+              const borradoOk = await MediaLibrary.deleteAssetsAsync(
+                fotosDescartadas.map((f) => f.id)
+              );
+              if (!borradoOk) {
+                // Canceló el aviso del sistema: no se ha borrado nada.
+                Alert.alert(
+                  T.comun.borrarTodo.nadaBorradoTitulo,
+                  T.comun.borrarTodo.nadaBorradoTexto
+                );
+                return;
+              }
             } catch {
-              // Si falla el borrado, no bloqueamos la salida.
+              Alert.alert(T.comun.borrarTodo.errorTitulo, T.comun.borrarTodo.errorTexto);
+              return;
             }
             router.back();
           },
@@ -149,7 +171,7 @@ export default function MomentoScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       {/* ── Cabecera ── */}
       <View style={styles.cabecera}>
         <Text style={styles.titulo}>{T.momento.titulo}</Text>
@@ -228,13 +250,9 @@ export default function MomentoScreen() {
       {/* ── Barra inferior de publicar ── */}
       {marcadas.length > 0 && (
         <View style={styles.barraInferior}>
-          <BouncyPressable style={styles.botonPublicar} onPress={publicar} disabled={publicando}>
-            <Text style={styles.botonPublicarTexto}>
-              {publicando
-                ? T.momento.preparando
-                : T.momento.publicarN(marcadas.length)}
-            </Text>
-          </BouncyPressable>
+          <Boton onPress={publicar} disabled={publicando}>
+            {publicando ? T.momento.preparando : T.momento.publicarN(marcadas.length)}
+          </Boton>
         </View>
       )}
 
@@ -256,21 +274,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
   },
   cabecera: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
     marginBottom: 28,
   },
   titulo: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORES.texto,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   subtitulo: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORES.acento,
-    textAlign: 'center',
+    color: COLORES.acentoTexto,
+    textAlign: 'left',
     marginTop: 4,
   },
   selectorVentana: {
@@ -388,16 +406,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
     borderTopWidth: 1,
     borderTopColor: COLORES.borde,
-  },
-  botonPublicar: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 16,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  botonPublicarTexto: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

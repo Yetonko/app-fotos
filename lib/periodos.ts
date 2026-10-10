@@ -1,5 +1,5 @@
 import * as MediaLibrary from 'expo-media-library';
-import { nombreMesCorto } from './idioma';
+import { nombreMesCorto, nombreMesLargo } from './idioma';
 
 // Un periodo es un trimestre natural: Ene-Mar, Abr-Jun, Jul-Sep u Oct-Dic de
 // un año concreto. Se usan trimestres fijos (no una ventana móvil desde
@@ -7,12 +7,20 @@ import { nombreMesCorto } from './idioma';
 // trimestre de 2026") y no cambian de límites según el día en que se abra
 // la app. Antes eran semestres; se pasó a trimestres para que cada periodo
 // tenga menos fotos y no se haga eterno de revisar.
+//
+// Si un trimestre tiene demasiadas fotos (más de UMBRAL_DIVIDIR_EN_MESES),
+// se parte en sus meses: así ningún periodo se hace eterno de revisar.
 export type Periodo = {
-  id: string; // ej. '2026-Q1'
-  etiqueta: string; // ej. 'Ene - Mar 2026'
+  id: string; // ej. '2026-Q1', o '2026-M01' si es un mes
+  etiqueta: string; // ej. 'Ene - Mar 2026', o 'Enero 2026'
   desde: number; // timestamp (ms) del primer instante del periodo
   hasta: number; // timestamp (ms) del último instante del periodo
+  // Solo en meses: id del trimestre del que salen. Sirve para respetar lo
+  // que ya se hubiera revisado cuando ese trimestre aún no se partía.
+  trimestreId?: string;
 };
+
+export const UMBRAL_DIVIDIR_EN_MESES = 300;
 
 const MESES_INICIO_TRIMESTRE = { 1: 0, 2: 3, 3: 6, 4: 9 } as const; // ene=0, abr=3, jul=6, oct=9 en Date
 type Trimestre = 1 | 2 | 3 | 4;
@@ -109,4 +117,25 @@ export async function contarFotosEnPeriodo(periodo: Periodo): Promise<ConteoPeri
     total: resultado.totalCount,
     portadaUri: resultado.assets[0]?.uri ?? null,
   };
+}
+
+// Parte un trimestre en sus tres meses, del más reciente al más antiguo
+// (mismo orden que generarPeriodos).
+export function mesesDeTrimestre(trimestre: Periodo): Periodo[] {
+  const inicio = new Date(trimestre.desde);
+  const anio = inicio.getFullYear();
+  const primerMes = inicio.getMonth();
+  const meses: Periodo[] = [];
+  for (let m = primerMes + 2; m >= primerMes; m--) {
+    const desde = new Date(anio, m, 1, 0, 0, 0, 0).getTime();
+    const hasta = new Date(anio, m + 1, 1, 0, 0, 0, 0).getTime() - 1;
+    meses.push({
+      id: `${anio}-M${String(m + 1).padStart(2, '0')}`,
+      etiqueta: `${nombreMesLargo(m)} ${anio}`,
+      desde,
+      hasta,
+      trimestreId: trimestre.id,
+    });
+  }
+  return meses;
 }

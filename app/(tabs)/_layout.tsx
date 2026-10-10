@@ -4,16 +4,15 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { T } from '@/lib/i18n';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { COLORES } from '@/constants/estilo';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: COLORES.acentoTexto,
+        tabBarInactiveTintColor: COLORES.textoSecundario,
+        tabBarStyle: { backgroundColor: COLORES.fondo, borderTopColor: COLORES.borde },
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
@@ -28,7 +27,7 @@ export default function TabLayout() {
         name="momento"
         options={{
           title: T.pestanas.momento,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="bolt.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -43,7 +42,7 @@ export default function TabLayout() {
         options={{
           title: T.pestanas.albumes,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="photo.on.rectangle" color={color} />
+            <IconSymbol size={28} name="heart.fill" color={color} />
           ),
         }}
       />

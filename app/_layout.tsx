@@ -1,10 +1,10 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { COLORES } from '@/constants/estilo';
 import { inicializarCompras } from '@/lib/compras';
 
 export const unstable_settings = {
@@ -15,12 +15,23 @@ export const unstable_settings = {
 // asi no se repite en cada render ni en cada remount de RootLayout.
 inicializarCompras();
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+// Tema claro propio de Fondly: la app siempre se ve en modo claro.
+const TEMA_FONDLY = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: COLORES.fondo,
+    card: COLORES.fondo,
+    primary: COLORES.acentoTexto,
+    text: COLORES.texto,
+    border: COLORES.borde,
+  },
+};
 
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={TEMA_FONDLY}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -41,7 +52,7 @@ export default function RootLayout() {
           />
           <Stack.Screen name="paywall" options={{ headerShown: false }} />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style="dark" />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

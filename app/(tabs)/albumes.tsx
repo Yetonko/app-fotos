@@ -8,19 +8,9 @@ import { Image } from 'expo-image';
 import { inicializarMomentos, obtenerMomentos } from '@/lib/momentos';
 import { BouncyPressable } from '@/components/bouncy-pressable';
 
-// Misma paleta que el resto de pantallas.
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoSuave: '#F4DCD3',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
 
 import { nombreMesLargo } from '@/lib/idioma';
+import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 
 // Clave 'YYYY-MM' (para agrupar y ordenar) y nombre visible 'Agosto 2026'
@@ -138,12 +128,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORES.fondo,
   },
   titulo: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 16,
     color: COLORES.texto,
     fontSize: 28,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
   vacioContenedor: {
     flex: 1,

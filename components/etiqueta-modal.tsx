@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { COLORES } from '@/constants/estilo';
+import { Boton } from '@/components/boton';
 import { T } from '@/lib/i18n';
 
-const COLORES = {
-  fondo: '#F5EFE3',
-  superficie: '#FFFFFF',
-  borde: '#EAE2D0',
-  acento: '#D98C7A',
-  acentoOscuro: '#3B2A28',
-  texto: '#2B2420',
-  textoSecundario: '#8C8171',
-};
 
 type Props = {
   visible: boolean;
@@ -52,6 +45,7 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
         <View style={styles.tarjeta}>
           <Text style={styles.etiquetaFecha}>{etiquetaFecha}</Text>
           <Text style={styles.titulo}>{T.etiqueta.titulo}</Text>
+          <Text style={styles.explicacion}>{T.etiqueta.explicacion}</Text>
           <TextInput
             style={styles.input}
             value={texto}
@@ -63,9 +57,9 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
             onSubmitEditing={guardar}
           />
 
-          <Pressable style={styles.botonGuardar} onPress={guardar}>
-            <Text style={styles.textoBotonGuardar}>{T.etiqueta.guardar}</Text>
-          </Pressable>
+          <Boton style={styles.botonGuardar} onPress={guardar}>
+            {T.etiqueta.guardar}
+          </Boton>
 
           {valorInicial.length > 0 && (
             <Pressable style={styles.botonQuitar} onPress={quitar}>
@@ -83,6 +77,11 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
 }
 
 const styles = StyleSheet.create({
+  explicacion: {
+    fontSize: 15,
+    color: COLORES.textoSecundario,
+    marginBottom: 12,
+  },
   fondo: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -98,9 +97,8 @@ const styles = StyleSheet.create({
   },
   etiquetaFecha: {
     color: COLORES.textoSecundario,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 6,
   },
@@ -121,23 +119,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   botonGuardar: {
-    backgroundColor: COLORES.acentoOscuro,
-    paddingVertical: 12,
-    borderRadius: 24,
-    alignItems: 'center',
     marginBottom: 8,
-  },
-  textoBotonGuardar: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 15,
   },
   botonQuitar: {
     paddingVertical: 8,
     alignItems: 'center',
   },
   textoBotonQuitar: {
-    color: COLORES.acento,
+    color: COLORES.acentoTexto,
     fontWeight: '600',
     fontSize: 13,
   },

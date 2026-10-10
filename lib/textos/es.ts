@@ -18,7 +18,7 @@ export const es = {
     publicar: 'Publicar',
     borrar: 'Borrar',
     descartar: 'Descartar',
-    volver: '‹ Volver',
+    volver: 'Volver',
     volverAMisFotos: 'Volver a mis fotos',
     listo: '¡Listo!',
     errorCompartir: 'No hemos podido abrir las opciones para compartir.',
@@ -38,13 +38,16 @@ export const es = {
         `Se ${n === 1 ? 'borrará' : 'borrarán'} ${n} ${n === 1 ? 'foto' : 'fotos'} de este momento, sin elegir ninguna. ${recuperacion}`,
       boton: 'Borrar todas',
       nadaBorradoTitulo: 'No se ha borrado nada',
-      nadaBorradoTexto: 'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.',
-      errorTitulo: 'No hemos podido eliminar las fotos.',
-      errorTexto: 'Revisa los permisos e inténtalo de nuevo.',
+      nadaBorradoTexto: 'Tus fotos siguen en el carrete, no ha cambiado nada.',
+      // En iPhone, cancelar el aviso del sistema llega como "error": por
+      // eso este texto no culpa a nadie y dice lo único seguro.
+      errorTitulo: 'No se ha borrado nada',
+      errorTexto: 'Tus fotos siguen en el carrete. Si querías borrarlas, inténtalo de nuevo.',
     },
   },
 
   home: {
+    titulo: 'Inicio',
     insigniaPrivacidad: (dispositivo: string) => `🔒 100% en tu ${dispositivo}`,
     espacioLibre: (espacio: string, critico: boolean) =>
       `${critico ? 'Solo te quedan ' : 'Te quedan '}${espacio} libres`,
@@ -52,8 +55,17 @@ export const es = {
     tituloTarjeta: (fecha: string, n: number) => `${fecha} · ${n} fotos`,
     volverAElegir: 'Volver a elegir',
     revisarYLimpiar: 'Revisar y limpiar ✨',
-    explorarTitulo: '📅 Revisar fotos más antiguas',
+    explorarTitulo: 'Revisar fotos más antiguas',
     explorarSubtitulo: 'Elige tus mejores momentos de otros periodos',
+    // Si entre las fotos recientes no hay ninguna ráfaga
+    vacioTitulo: 'Todavía no hay ráfagas nuevas',
+    vacioTexto:
+      'Cuando hagas varias fotos seguidas de un mismo momento, aparecerán aquí. Mientras, puedes repasar fotos más antiguas aquí abajo.',
+    // Si no nos da permiso para ver sus fotos
+    sinPermisoTitulo: 'Necesitamos ver tus fotos',
+    sinPermisoTexto: (dispositivo: string) =>
+      `Para encontrar tus mejores momentos, Fondly tiene que poder ver tus fotos. Se quedan en tu ${dispositivo}: no se suben a ningún sitio.\n\nAbre Ajustes y deja que Fondly vea tus fotos. Al volver, empezamos solas.`,
+    abrirAjustes: 'Abrir Ajustes',
     // Frases que rotan mientras se escanea el carrete
     frasesEscaneo: [
       'Mirando tus fotos con cariño…',
@@ -64,13 +76,13 @@ export const es = {
   },
 
   momento: {
-    titulo: '⚡ Momento',
-    subtitulo: 'Súbelo antes de que se acabe',
+    titulo: 'Ahora',
+    subtitulo: 'Elige tus fotos de hace un rato y compártelas',
     ventana5min: 'Últimos 5 min',
     ventana1h: 'Última hora',
     ventanaHoy: 'Hoy',
     vacio: 'No hay fotos en este rango. Prueba a ampliar la ventana de tiempo.',
-    publicar: 'Publicar',
+    publicar: 'Elegir',
     quitar: 'Quitar',
     descartar: 'Descartar',
     preparando: 'Preparando...',
@@ -91,7 +103,10 @@ export const es = {
     tituloPorDefecto: 'Periodo',
     vacio: 'No hemos encontrado fotos casi iguales en este periodo.',
     tituloTarjeta: (numero: number, n: number) => `Momento ${numero} · ${n} fotos casi iguales`,
-    ningunaDeEstas: '🗑 No quiero ninguna de estas',
+    tituloConNombre: (nombre: string, n: number) => `${nombre} · ${n} fotos`,
+    ponleNombre: 'Ponle nombre',
+    cambiarNombre: 'Cambiar nombre',
+    borrarMomento: (n: number) => `Borrar las ${n} fotos de este momento`,
     frasesEscaneo: [
       'Mirando tus fotos con cariño…',
       'Agrupando lo que va junto…',
@@ -136,23 +151,23 @@ export const es = {
   },
 
   albumes: {
-    titulo: 'Tus momentos',
+    titulo: 'Elegidas',
     vacio:
-      'Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en Home.',
+      'Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en Inicio.',
     fotosElegidas: (n: number) => `${n} ${n === 1 ? 'foto elegida' : 'fotos elegidas'}`,
   },
 
   // Nombres de las pestañas de abajo
   pestanas: {
-    home: 'Home',
-    momento: 'Momento',
-    periodos: 'Periodos',
-    albumes: 'Álbumes',
+    home: 'Inicio',
+    momento: 'Ahora',
+    periodos: 'Épocas',
+    albumes: 'Elegidas',
   },
 
   // Pantallas de bienvenida (primera vez que se abre la app)
   bienvenida: {
-    atras: '‹ Atrás',
+    atras: 'Atrás',
     siguiente: 'Siguiente',
     empezar: 'Empezar',
     paso1Titulo: 'Encuentra tu mejor foto\ny publícala',
@@ -173,7 +188,8 @@ export const es = {
 
   // Ventana para poner nombre a una actividad
   etiqueta: {
-    titulo: 'Nombre de la actividad',
+    titulo: 'Ponle nombre a este momento',
+    explicacion: 'Así lo reconocerás de un vistazo cuando vuelvas.',
     ejemplo: 'Ej. Benasque ski',
     guardar: 'Guardar',
     quitar: 'Quitar etiqueta',
@@ -190,20 +206,22 @@ export const es = {
     cargando: 'Un momento...',
     cualPrefieres: '¿Cuál prefieres?',
     pista: 'Elige la que mejor representa el momento.',
+    pistaGrupo: (n: number) => `Elige tu favorita de estas ${n}. Tranquila, aquí no se borra nada.`,
     pistaGestos: 'Toca dos veces para elegir · toca una vez para ampliar',
     vs: 'vs',
-    yaTienesTuFoto: '¡Ya tienes tu foto! ¿La publicamos?',
     // Si no se encuentra el grupo
     noEncontrado: 'No encontramos este momento',
     noEncontradoTexto: 'Puede que la app se haya reiniciado. Vuelve a la lista y ábrela de nuevo.',
     // Foto elegida
     laElegida: '¡Esta es la elegida! ✨',
-    guardadaEnAlbum: '✓ Guardada en tu álbum Fondly',
-    compartir: 'Compartir / Publicar',
+    guardadaEnAlbum: '✓ Ya está en tu álbum Fondly',
+    compartir: 'Compartir o publicar',
+    seguirConOtras: (n: number) =>
+      n === 1 ? 'Siguiente: qué hago con la otra' : `Siguiente: qué hago con las otras ${n}`,
+    masOpciones: 'Más opciones',
     // Mejora de brillo
     darBrillo: 'Dar un toque de brillo ✨',
     mejorando: 'Mejorando la luz y el contraste...',
-    preparandoMejora: 'Estamos preparando una versión mejorada.',
     versionMejorada: 'Versión mejorada',
     guardarEnCarrete: 'Guardar en el carrete',
     errorMejorar: 'No hemos podido mejorar esta foto.',
@@ -212,19 +230,19 @@ export const es = {
     guardadaTexto: 'La nueva versión ya está en tu carrete.',
     errorGuardarMejora: 'No hemos podido guardar la versión mejorada.',
     // Limpiar el resto
-    ningunaBorrarTambien: 'No quiero ninguna, borrar también esta foto',
-    calculandoEspacio: 'Calculando espacio a liberar...',
-    vasALiberar: (tamano: string) => `🗑 Vas a liberar ${tamano}`,
-    sinEspacioALiberar: 'No vas a liberar espacio (te quedas con todas)',
-    seBorraraEsta: 'Esta es la que se borrará',
-    algunaMas: '¿Alguna más de este momento?',
-    eligeConservar: 'Elige las que quieras conservar además de la elegida.',
-    pistaLupa: 'Toca 🔍 en cada foto para ampliarla antes de decidir',
+    ningunaBorrarTambien: 'Borrar todas, también la elegida',
+    otrasTitulo: (n: number) => (n === 1 ? '¿Y la otra foto?' : `¿Y las otras ${n}?`),
+    otrasSubtitulo:
+      'Toca las que quieras guardar también. Las demás irán a "Eliminados recientemente".',
+    calculandoEspacio: 'Calculando cuánto espacio ganas...',
+    vasALiberar: (tamano: string) => `Vas a liberar ${tamano}`,
+    sinEspacioALiberar: 'Te las quedas todas',
+    pistaLupa: 'Toca la lupa para verlas en grande y desliza para pasar de una a otra',
     borrosa: 'Borrosa',
-    eliminando: 'Eliminando fotos...',
-    guardarExtras: (n: number) => `Guardar ${n} más y borrar el resto`,
-    borrarLasDemas: (n: number) => `Borrar las demás (${n})`,
-    recuperar30Dias: 'Podrás recuperarlas 30 días desde Fotos',
+    eliminando: 'Borrando...',
+    borrarN: (n: number) => `Borrar ${n} ${n === 1 ? 'foto' : 'fotos'}`,
+    quedarmelasTodas: 'Quedármelas todas',
+    volverAMiFoto: 'Volver a mi foto',
     // Avisos de borrado
     borrarFotosTitulo: 'Borrar fotos',
     borrarFotosTexto: (n: number, recuperacion: string) =>
@@ -237,10 +255,12 @@ export const es = {
   },
 
   periodos: {
-    titulo: 'Tus recuerdos por épocas',
-    subtitulo: 'Revive cada época y quédate con lo mejor',
+    titulo: 'Épocas',
+    subtitulo: 'Haz sitio repasando tus fotos antiguas',
     cargando: 'Revisando tu carrete por periodos...',
     vacio: 'No hemos encontrado fotos en tu carrete todavía.',
+    hasLiberado: (tamano: string) => `Has liberado ${tamano} con Fondly`,
+    conteoConTamano: (fotos: string, tamano: string) => `${fotos} · unos ${tamano}`,
     avisoMuchasFotos: 'Son bastantes fotos, puede tardar un poco más',
     errorPermisos: (dispositivo: string) =>
       `No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${dispositivo}.`,
