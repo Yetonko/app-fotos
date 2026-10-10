@@ -237,7 +237,7 @@ export const es = {
     calculandoEspacio: 'Calculando cuánto espacio ganas...',
     vasALiberar: (tamano: string) => `Vas a liberar ${tamano}`,
     sinEspacioALiberar: 'Te las quedas todas',
-    pistaLupa: 'Toca la lupa para verla en grande',
+    pistaLupa: 'Toca la lupa para verlas en grande y desliza para pasar de una a otra',
     borrosa: 'Borrosa',
     eliminando: 'Borrando...',
     borrarN: (n: number) => `Borrar ${n} ${n === 1 ? 'foto' : 'fotos'}`,

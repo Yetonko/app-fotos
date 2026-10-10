@@ -70,6 +70,9 @@ export default function SeleccionScreen() {
 
   const [estado, setEstado] = useState<EstadoTorneo>(() => iniciarTorneo(candidatasOriginales));
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
+  // Foto de "las otras" abierta en el visor: se guarda el id para abrirlo en
+  // esa foto y poder deslizar por todas sin salir.
+  const [extraAmpliadaId, setExtraAmpliadaId] = useState<string | null>(null);
   // Foto ampliada dentro del duelo: guarda el id (no la uri) para poder
   // calcular el índice inicial dentro del grupo actual y permitir
   // deslizar entre sus fotos sin salir del zoom.
@@ -530,7 +533,7 @@ export default function SeleccionScreen() {
                         style={styles.miniaturaExtraLupa}
                         onPress={() => {
                           marcarCoachmarkVisto('extras_lupa');
-                          setFotoAmpliada(foto.uri);
+                          setExtraAmpliadaId(foto.id);
                         }}
                         hitSlop={8}
                       >
@@ -579,6 +582,12 @@ export default function SeleccionScreen() {
           uri={fotoAmpliada}
           visible={!!fotoAmpliada}
           onClose={() => setFotoAmpliada(null)}
+        />
+        <ZoomablePhotoModal
+          fotos={resto}
+          indiceInicial={Math.max(0, resto.findIndex((f) => f.id === extraAmpliadaId))}
+          visible={!!extraAmpliadaId}
+          onClose={() => setExtraAmpliadaId(null)}
         />
         <EtiquetaModal
           visible={mostrarEtiquetaModal}
