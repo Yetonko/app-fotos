@@ -164,7 +164,11 @@ export default function PeriodoScreen() {
   // Borra el grupo entero (todas sus fotos, sin elegir ninguna). Mismo
   // criterio que en index.tsx: para fotos-recordatorio donde ninguna
   // merece quedarse.
+  // Mientras se mide y se borra un momento no se puede lanzar otro borrado.
+  const borrandoRef = useRef(false);
+
   const descartarGrupoCompleto = (item: GrupoConCandidatas) => {
+    if (borrandoRef.current) return;
     const idsTodo = item.candidatas.map((c) => c.id);
     Alert.alert(
       T.comun.borrarTodo.titulo,
@@ -175,6 +179,8 @@ export default function PeriodoScreen() {
           text: T.comun.borrarTodo.boton,
           style: 'destructive',
           onPress: async () => {
+            if (borrandoRef.current) return;
+            borrandoRef.current = true;
             try {
               // Se mide antes de borrar (después ya no se puede) para poder
               // decirle cuánto espacio ha ganado.
@@ -199,6 +205,8 @@ export default function PeriodoScreen() {
                 T.comun.borrarTodo.errorTitulo,
                 T.comun.borrarTodo.errorTexto
               );
+            } finally {
+              borrandoRef.current = false;
             }
           },
         },
@@ -209,6 +217,7 @@ export default function PeriodoScreen() {
   // Lo que no es elegir la foto (hoy, solo borrar el momento entero) va
   // aquí, lejos del botón principal.
   const abrirMasOpciones = (item: GrupoConCandidatas) => {
+    if (borrandoRef.current) return;
     Alert.alert(T.seleccion.masOpciones, undefined, [
       {
         text: T.periodo.borrarMomento(item.candidatas.length),

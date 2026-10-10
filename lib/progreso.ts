@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { invalidarEstimaciones } from './tamano';
+
 const CLAVE_PROGRESO = 'progreso_diario';
 const CLAVE_LIBERADO_TOTAL = 'bytes_liberados_total';
 
@@ -86,6 +88,7 @@ export async function obtenerLiberadoTotal(): Promise<number> {
 
 export async function sumarLiberado(bytes: number): Promise<void> {
   if (bytes <= 0) return;
+  invalidarEstimaciones();
   liberadoTotal = (await obtenerLiberadoTotal()) + bytes;
   try {
     await AsyncStorage.setItem(CLAVE_LIBERADO_TOTAL, String(liberadoTotal));

@@ -41,6 +41,11 @@ export function formatearTamano(bytes: number): string {
 const MUESTRA = 6;
 const cacheEstimaciones = new Map<string, number | null>();
 
+// Tras borrar fotos, las estimaciones guardadas ya no valen.
+export function invalidarEstimaciones(): void {
+  cacheEstimaciones.clear();
+}
+
 export async function estimarTamanoRango(
   clave: string,
   desde: number,
