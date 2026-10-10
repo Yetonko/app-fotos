@@ -190,6 +190,7 @@ export const es = {
     cargando: 'Un momento...',
     cualPrefieres: '¿Cuál prefieres?',
     pista: 'Elige la que mejor representa el momento.',
+    pistaGrupo: (n: number) => `Elige tu favorita de estas ${n}. Tranquila, aquí no se borra nada.`,
     pistaGestos: 'Toca dos veces para elegir · toca una vez para ampliar',
     vs: 'vs',
     // Si no se encuentra el grupo

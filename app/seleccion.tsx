@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Pressable, View, Text, ScrollView, Alert, Share, Platform } from 'react-native';
+import {
+  StyleSheet,
+  Pressable,
+  View,
+  Text,
+  ScrollView,
+  Alert,
+  Share,
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
@@ -9,8 +19,9 @@ import { registrarSeleccion } from '@/lib/uso';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
 import {
   iniciarTorneo,
-  parejaActual,
+  grupoActual,
   elegirGanadora,
+  totalElecciones,
   EstadoTorneo,
   FotoCandidata,
 } from '@/lib/torneo';
@@ -93,14 +104,13 @@ export default function SeleccionScreen() {
 
   const candidatasOriginales = useRef(grupo?.candidatas ?? []).current;
   const descartadasPorNitidez = useRef(grupo?.descartadas ?? []).current;
-  const totalComparaciones = Math.max(candidatasOriginales.length - 1, 1);
+  const totalComparaciones = Math.max(totalElecciones(candidatasOriginales.length), 1);
 
   const [estado, setEstado] = useState<EstadoTorneo>(() => iniciarTorneo(candidatasOriginales));
-  const [comparacionActual, setComparacionActual] = useState(1);
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
   // Foto ampliada dentro del duelo: guarda el id (no la uri) para poder
-  // calcular el índice inicial dentro de [fotoA, fotoB] y permitir
-  // deslizar entre ambas sin salir del zoom.
+  // calcular el índice inicial dentro del grupo actual y permitir
+  // deslizar entre sus fotos sin salir del zoom.
   const [duelAmpliadoId, setDuelAmpliadoId] = useState<string | null>(null);
   const [borrando, setBorrando] = useState(false);
   const [mejorando, setMejorando] = useState(false);
@@ -138,11 +148,16 @@ export default function SeleccionScreen() {
     inicializarCoachmarks().then(() => setTickCoachmarks((t) => t + 1));
   }, []);
 
-  const pareja = parejaActual(estado);
+  const grupoTorneo = grupoActual(estado);
+  const { width: anchoPantalla } = useWindowDimensions();
 
   const elegir = (foto: FotoCandidata) => {
+    // Un toque simple pendiente (que iba a abrir el visor) ya no tiene
+    // sentido: el grupo va a cambiar.
+    Object.values(toqueTimeoutRef.current).forEach((t) => t && clearTimeout(t));
+    toqueTimeoutRef.current = {};
+    setDuelAmpliadoId(null);
     setEstado((estadoAnterior) => elegirGanadora(estadoAnterior, foto));
-    setComparacionActual((n) => Math.min(n + 1, totalComparaciones));
   };
 
   // Deteccion de doble toque sin depender de react-native-gesture-handler:
@@ -639,7 +654,7 @@ export default function SeleccionScreen() {
     );
   }
 
-  if (!pareja) {
+  if (!grupoTorneo) {
     return (
       <View style={styles.container}>
         <Text style={styles.titulo}>{T.seleccion.cargando}</Text>
@@ -647,7 +662,34 @@ export default function SeleccionScreen() {
     );
   }
 
-  const [fotoA, fotoB] = pareja;
+  // Duelo (2 fotos): una al lado de la otra con "vs". Grupo (3-4 fotos, solo
+  // en las primeras rondas de torneos largos): cuadrícula de 2 columnas
+  // con fotos algo más bajas para que quepan sin desplazarse.
+  const esDuelo = grupoTorneo.length === 2;
+  const anchoFotoGrupo = Math.min(170, Math.floor((anchoPantalla - 40 - 12) / 2));
+  const estiloFotoGrupo = { width: anchoFotoGrupo, height: Math.round(anchoFotoGrupo * 1.1), borderRadius: 16 };
+
+  const renderFotoTorneo = (foto: FotoCandidata) => (
+    <View key={foto.id} style={[styles.opcion, !esDuelo && styles.opcionGrupo]}>
+      <Pressable onPress={() => manejarToqueFoto(foto)}>
+        <View style={styles.fotoDueloContenedor}>
+          <Image
+            source={{ uri: foto.uri }}
+            style={esDuelo ? styles.fotoDuelo : estiloFotoGrupo}
+            transition={200}
+          />
+          {corazonAnimado === foto.id && (
+            <View style={styles.corazonFlotanteContenedor} pointerEvents="none">
+              <Text style={styles.corazonFlotante}>❤️</Text>
+            </View>
+          )}
+          <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(foto)}>
+            <Text style={styles.textoCorazon}>♥</Text>
+          </BouncyPressable>
+        </View>
+      </Pressable>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -666,13 +708,15 @@ export default function SeleccionScreen() {
               key={i}
               style={[
                 styles.progresoPunto,
-                i === comparacionActual - 1 && styles.progresoPuntoActivo,
+                i === estado.eleccionesHechas && styles.progresoPuntoActivo,
               ]}
             />
           ))}
         </View>
         <Text style={styles.titulo}>{T.seleccion.cualPrefieres}</Text>
-        <Text style={styles.pista}>{T.seleccion.pista}</Text>
+        <Text style={styles.pista}>
+          {esDuelo ? T.seleccion.pista : T.seleccion.pistaGrupo(grupoTorneo.length)}
+        </Text>
         <Text
           style={[
             styles.pistaZoom,
@@ -682,48 +726,22 @@ export default function SeleccionScreen() {
           {T.seleccion.pistaGestos}
         </Text>
 
-        <View style={styles.duelo}>
-          <View style={styles.opcion}>
-            <Pressable onPress={() => manejarToqueFoto(fotoA)}>
-              <View style={styles.fotoDueloContenedor}>
-                <Image source={{ uri: fotoA.uri }} style={styles.fotoDuelo} transition={200} />
-                {corazonAnimado === fotoA.id && (
-                  <View style={styles.corazonFlotanteContenedor} pointerEvents="none">
-                    <Text style={styles.corazonFlotante}>❤️</Text>
-                  </View>
-                )}
-                <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoA)}>
-                  <Text style={styles.textoCorazon}>♥</Text>
-                </BouncyPressable>
-              </View>
-            </Pressable>
+        {esDuelo ? (
+          <View style={styles.duelo}>
+            {renderFotoTorneo(grupoTorneo[0])}
+            <View style={styles.vsPill}>
+              <Text style={styles.vsTexto}>{T.seleccion.vs}</Text>
+            </View>
+            {renderFotoTorneo(grupoTorneo[1])}
           </View>
-
-          <View style={styles.vsPill}>
-            <Text style={styles.vsTexto}>{T.seleccion.vs}</Text>
-          </View>
-
-          <View style={styles.opcion}>
-            <Pressable onPress={() => manejarToqueFoto(fotoB)}>
-              <View style={styles.fotoDueloContenedor}>
-                <Image source={{ uri: fotoB.uri }} style={styles.fotoDuelo} transition={200} />
-                {corazonAnimado === fotoB.id && (
-                  <View style={styles.corazonFlotanteContenedor} pointerEvents="none">
-                    <Text style={styles.corazonFlotante}>❤️</Text>
-                  </View>
-                )}
-                <BouncyPressable style={styles.botonCorazon} onPress={() => elegir(fotoB)}>
-                  <Text style={styles.textoCorazon}>♥</Text>
-                </BouncyPressable>
-              </View>
-            </Pressable>
-          </View>
-        </View>
+        ) : (
+          <View style={styles.cuadriculaGrupo}>{grupoTorneo.map(renderFotoTorneo)}</View>
+        )}
       </ScrollView>
 
       <ZoomablePhotoModal
-        fotos={[fotoA, fotoB]}
-        indiceInicial={duelAmpliadoId === fotoA.id ? 0 : 1}
+        fotos={grupoTorneo}
+        indiceInicial={Math.max(0, grupoTorneo.findIndex((f) => f.id === duelAmpliadoId))}
         visible={!!duelAmpliadoId}
         onClose={() => setDuelAmpliadoId(null)}
         onElegir={(foto) => {
@@ -863,6 +881,15 @@ const styles = StyleSheet.create({
   progresoPuntoActivo: {
     backgroundColor: COLORES.acento,
     width: 20,
+  },
+  opcionGrupo: {
+    marginBottom: 4,
+  },
+  cuadriculaGrupo: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    columnGap: 12,
   },
   duelo: {
     flexDirection: 'row',
