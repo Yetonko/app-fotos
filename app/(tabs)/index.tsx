@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Animated, FlatList, StyleSheet, Pressable, View, Text, Platform, Alert } from 'react-native';
+import {
+  Animated,
+  AppState,
+  FlatList,
+  Linking,
+  StyleSheet,
+  Pressable,
+  View,
+  Text,
+  Platform,
+  Alert,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -72,6 +83,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [status, setStatus] = useState('Buscando tus mejores momentos...');
+  // Sin permiso de fotos no hay nada que escanear: se enseña cómo darlo en
+  // Ajustes y se reintenta solo al volver a la app.
+  const [sinPermiso, setSinPermiso] = useState(false);
+  const [intentoEscaneo, setIntentoEscaneo] = useState(0);
   const [totalFotos, setTotalFotos] = useState<number | null>(null);
   const [grupos, setGrupos] = useState<GrupoConDistancias[]>([]);
   // Uri de la primera foto del grupo que se está analizando ahora mismo,
@@ -150,9 +165,10 @@ export default function HomeScreen() {
       const { status: permisoStatus } = await MediaLibrary.requestPermissionsAsync();
 
       if (permisoStatus !== 'granted') {
-        setStatus('No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes.');
+        setSinPermiso(true);
         return;
       }
+      setSinPermiso(false);
 
       setStatus('Buscando momentos en tu carrete...');
 
@@ -201,7 +217,16 @@ export default function HomeScreen() {
       setPilaEscaneo([]);
       setStatus('¡Listo!');
     })();
-  }, []);
+  }, [intentoEscaneo]);
+
+  // Al volver de Ajustes (la app pasa a primer plano), se vuelve a intentar.
+  useEffect(() => {
+    if (!sinPermiso) return;
+    const sub = AppState.addEventListener('change', (estadoApp) => {
+      if (estadoApp === 'active') setIntentoEscaneo((n) => n + 1);
+    });
+    return () => sub.remove();
+  }, [sinPermiso]);
 
   const seleccionarGrupo = async (grupoId: string) => {
     const { estado, seleccionesUsadas, diasRestantesCiclo } = await estadoUso();
@@ -317,7 +342,17 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {status !== '¡Listo!' && (
+      {sinPermiso && (
+        <View style={styles.sinPermisoContenedor}>
+          <Text style={styles.sinPermisoTitulo}>{T.home.sinPermisoTitulo}</Text>
+          <Text style={styles.sinPermisoTexto}>{T.home.sinPermisoTexto(DISPOSITIVO)}</Text>
+          <BouncyPressable style={styles.sinPermisoBoton} onPress={() => Linking.openSettings()}>
+            <Text style={styles.sinPermisoBotonTexto}>{T.home.abrirAjustes}</Text>
+          </BouncyPressable>
+        </View>
+      )}
+
+      {!sinPermiso && status !== '¡Listo!' && (
         <View style={styles.escaneoContenedor}>
           {pilaEscaneo.length > 0 && (
             <View style={styles.pilaContenedor}>
@@ -437,6 +472,37 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  sinPermisoContenedor: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+    gap: 14,
+  },
+  sinPermisoTitulo: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORES.texto,
+    textAlign: 'center',
+  },
+  sinPermisoTexto: {
+    fontSize: 17,
+    color: COLORES.texto,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  sinPermisoBoton: {
+    marginTop: 10,
+    backgroundColor: COLORES.acentoOscuro,
+    minHeight: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sinPermisoBotonTexto: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
     paddingHorizontal: 20,

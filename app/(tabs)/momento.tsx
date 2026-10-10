@@ -87,6 +87,25 @@ export default function MomentoScreen() {
   // ── Publicar: guarda las marcadas en el álbum Fondly y abre el compartir
   //    de la primera. Con varias, iOS no garantiza el carrusel, así que la
   //    vía fiable es dejarlas juntas en el álbum y que ella las añada. ──
+  // Abre el compartir de una foto. Devuelve false si ella cierra el menú
+  // sin compartir (iOS lo indica; en Android no se sabe y se da por hecho).
+  const compartirFoto = async (foto: FotoMomento): Promise<boolean> => {
+    const info = await MediaLibrary.getAssetInfoAsync(foto.id);
+    const resultado = await Share.share({ url: info.localUri ?? foto.uri });
+    return resultado.action !== Share.dismissedAction;
+  };
+
+  // Solo tras compartir de verdad: si hay descartadas, ofrecer borrarlas
+  // (opcional). Si cerró el menú sin compartir, se queda donde estaba.
+  const trasCompartir = (compartido: boolean) => {
+    if (!compartido) return;
+    if (fotosDescartadas.length > 0) {
+      ofrecerBorrarDescartadas();
+    } else {
+      router.back();
+    }
+  };
+
   const publicar = async () => {
     if (fotosMarcadas.length === 0) return;
     setPublicando(true);
@@ -95,28 +114,26 @@ export default function MomentoScreen() {
 
       if (ordenadas.length === 1) {
         // Una sola: compartir directo, como en el torneo.
-        const info = await MediaLibrary.getAssetInfoAsync(ordenadas[0].id);
-        await Share.share({ url: info.localUri ?? ordenadas[0].uri });
+        trasCompartir(await compartirFoto(ordenadas[0]));
       } else {
-        // Varias: guardarlas todas en el álbum Fondly y abrir el compartir
-        // de la primera, avisando de que están juntas en el álbum.
+        // Varias: guardarlas todas en el álbum Fondly, avisar de que están
+        // juntas allí y, solo cuando cierre el aviso, abrir el compartir de
+        // la primera (un aviso y el menú de compartir a la vez se pisan).
         for (const foto of ordenadas) {
           await guardarEnAlbumFavoritas(foto.id);
         }
-        Alert.alert(
-          T.momento.listasTitulo,
-          T.momento.listasTexto(ordenadas.length),
-          [{ text: T.momento.entendido }]
-        );
-        const info = await MediaLibrary.getAssetInfoAsync(ordenadas[0].id);
-        await Share.share({ url: info.localUri ?? ordenadas[0].uri });
-      }
-
-      // Tras compartir, si hay descartadas, ofrecer borrarlas (opcional).
-      if (fotosDescartadas.length > 0) {
-        ofrecerBorrarDescartadas();
-      } else {
-        router.back();
+        Alert.alert(T.momento.listasTitulo, T.momento.listasTexto(ordenadas.length), [
+          {
+            text: T.momento.entendido,
+            onPress: async () => {
+              try {
+                trasCompartir(await compartirFoto(ordenadas[0]));
+              } catch {
+                Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
+              }
+            },
+          },
+        ]);
       }
     } catch {
       Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
@@ -137,9 +154,20 @@ export default function MomentoScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await MediaLibrary.deleteAssetsAsync(fotosDescartadas.map((f) => f.id));
+              const borradoOk = await MediaLibrary.deleteAssetsAsync(
+                fotosDescartadas.map((f) => f.id)
+              );
+              if (!borradoOk) {
+                // Canceló el aviso del sistema: no se ha borrado nada.
+                Alert.alert(
+                  T.comun.borrarTodo.nadaBorradoTitulo,
+                  T.comun.borrarTodo.nadaBorradoTexto
+                );
+                return;
+              }
             } catch {
-              // Si falla el borrado, no bloqueamos la salida.
+              Alert.alert(T.comun.borrarTodo.errorTitulo, T.comun.borrarTodo.errorTexto);
+              return;
             }
             router.back();
           },

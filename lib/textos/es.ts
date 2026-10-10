@@ -38,7 +38,7 @@ export const es = {
         `Se ${n === 1 ? 'borrará' : 'borrarán'} ${n} ${n === 1 ? 'foto' : 'fotos'} de este momento, sin elegir ninguna. ${recuperacion}`,
       boton: 'Borrar todas',
       nadaBorradoTitulo: 'No se ha borrado nada',
-      nadaBorradoTexto: 'Cancelaste la confirmación del sistema. Tus fotos siguen en el carrete.',
+      nadaBorradoTexto: 'Tus fotos siguen en el carrete, no ha cambiado nada.',
       errorTitulo: 'No hemos podido eliminar las fotos.',
       errorTexto: 'Revisa los permisos e inténtalo de nuevo.',
     },
@@ -54,6 +54,11 @@ export const es = {
     revisarYLimpiar: 'Revisar y limpiar ✨',
     explorarTitulo: '📅 Revisar fotos más antiguas',
     explorarSubtitulo: 'Elige tus mejores momentos de otros periodos',
+    // Si no nos da permiso para ver sus fotos
+    sinPermisoTitulo: 'Necesitamos ver tus fotos',
+    sinPermisoTexto: (dispositivo: string) =>
+      `Para encontrar tus mejores momentos, Fondly tiene que poder ver tus fotos. Se quedan en tu ${dispositivo}: no se suben a ningún sitio.\n\nAbre Ajustes y deja que Fondly vea tus fotos. Al volver, empezamos solas.`,
+    abrirAjustes: 'Abrir Ajustes',
     // Frases que rotan mientras se escanea el carrete
     frasesEscaneo: [
       'Mirando tus fotos con cariño…',
@@ -64,13 +69,13 @@ export const es = {
   },
 
   momento: {
-    titulo: '⚡ Momento',
-    subtitulo: 'Súbelo antes de que se acabe',
+    titulo: 'Ahora',
+    subtitulo: 'Elige tus fotos de hace un rato y compártelas',
     ventana5min: 'Últimos 5 min',
     ventana1h: 'Última hora',
     ventanaHoy: 'Hoy',
     vacio: 'No hay fotos en este rango. Prueba a ampliar la ventana de tiempo.',
-    publicar: 'Publicar',
+    publicar: 'Elegir',
     quitar: 'Quitar',
     descartar: 'Descartar',
     preparando: 'Preparando...',
