@@ -21,6 +21,7 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'checkmark': 'check',
+  'square.stack': 'collections',
   'ellipsis': 'more-horiz',
   'clock.fill': 'schedule',
   'heart.fill': 'favorite',

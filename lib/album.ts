@@ -28,3 +28,23 @@ export async function guardarEnAlbumFavoritas(assetId: string): Promise<boolean>
     return false;
   }
 }
+
+// Junta varias fotos en un álbum propio con el nombre indicado (uno por
+// carrusel), para elegirlas de una vez desde Instagram. En iOS un álbum solo
+// guarda referencias: no duplica fotos ni ocupa espacio. Si el álbum ya
+// existe (repite el carrusel), se reutiliza. Devuelve true si todo fue bien.
+export async function guardarEnAlbumCarrusel(nombre: string, assetIds: string[]): Promise<boolean> {
+  if (assetIds.length === 0) return false;
+  try {
+    const existente = await MediaLibrary.getAlbumAsync(nombre);
+    if (existente) {
+      return await MediaLibrary.addAssetsToAlbumAsync(assetIds, existente, true);
+    }
+    const [primera, ...resto] = assetIds;
+    const creado = await MediaLibrary.createAlbumAsync(nombre, primera, true);
+    if (!creado) return false;
+    return resto.length === 0 || (await MediaLibrary.addAssetsToAlbumAsync(resto, creado, true));
+  } catch {
+    return false;
+  }
+}

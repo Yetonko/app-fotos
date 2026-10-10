@@ -8,6 +8,7 @@ import {
   Alert,
   Share,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -29,7 +30,7 @@ import {
 import { obtenerGrupo, marcarGanadora } from '@/lib/gruposElegidos';
 import { marcarRevisadoSiProcede } from '@/lib/revisados';
 import { registrarMomento } from '@/lib/momentos';
-import { guardarEnAlbumFavoritas } from '@/lib/album';
+import { guardarEnAlbumFavoritas, guardarEnAlbumCarrusel } from '@/lib/album';
 import { sumarEleccion, sumarLiberado } from '@/lib/progreso';
 import { inicializarCoachmarks, coachmarkVisto, marcarCoachmarkVisto } from '@/lib/coachmarks';
 import { obtenerNombreActividad, guardarNombreActividad, formatearFecha, formatearEtiqueta } from '@/lib/etiquetas';
@@ -47,6 +48,10 @@ import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
 // verificado de iOS. En Android varía según el fabricante y la app de
 // galería, así que ahí evitamos prometer un número de días o un nombre de
 // carpeta concretos.
+// Fotos por carrusel que se ofrecen (Instagram admite 10 en todas las
+// versiones; las más nuevas, más).
+const MAX_CARRUSEL = 10;
+
 const TEXTO_RECUPERACION =
   Platform.OS === 'ios'
     ? T.comun.recuperacionIos
@@ -99,7 +104,14 @@ export default function SeleccionScreen() {
   // Tras el torneo hay dos pasos, cada uno con una sola decisión:
   // 'foto' celebra y comparte la elegida; 'otras' decide qué hacer con el
   // resto de la ráfaga (el único sitio donde se borran las no elegidas).
-  const [paso, setPaso] = useState<'foto' | 'otras'>('foto');
+  const [paso, setPaso] = useState<'foto' | 'otras' | 'carrusel'>('foto');
+  // Fotos (además de la elegida) que irán en el carrusel, en el orden en que
+  // las toca. Al prepararlo pasan a "me la quedo" para no borrarse después.
+  const [carrusel, setCarrusel] = useState<string[]>([]);
+  const [preparandoCarrusel, setPreparandoCarrusel] = useState(false);
+  // Nombre del álbum del carrusel ya preparado: se recuerda en pantalla al
+  // volver de Instagram.
+  const [albumCarrusel, setAlbumCarrusel] = useState<string | null>(null);
   // true en cuanto un borrado ha ido bien: a partir de ahí no se ofrece
   // ningún otro borrado en esta pantalla (las fotos de `resto` ya no son
   // fiables y la pantalla se va a cerrar).
@@ -218,6 +230,56 @@ export default function SeleccionScreen() {
   // Ids de las fotos que se descartaron de entrada por estar borrosas, para
   // poder distinguirlas visualmente de las que perdieron el torneo.
   const idsBorrosas = new Set(descartadasPorNitidez.map((f) => f.id));
+
+  const alternarCarrusel = (id: string) => {
+    setCarrusel((actual) => {
+      if (actual.includes(id)) return actual.filter((x) => x !== id);
+      // La elegida ocupa un hueco: como mucho MAX_CARRUSEL - 1 más.
+      if (actual.length >= MAX_CARRUSEL - 1) {
+        Alert.alert(T.carrusel.maximoTitulo, T.carrusel.maximoTexto(MAX_CARRUSEL));
+        return actual;
+      }
+      return [...actual, id];
+    });
+  };
+
+  // Junta la elegida + las del carrusel en un álbum del momento y explica
+  // cómo publicarlas juntas desde Instagram. Compartir varias fotos de golpe
+  // desde la app no es fiable (Instagram suele quedarse solo con una).
+  const preparandoCarruselRef = useRef(false);
+  const prepararCarrusel = async () => {
+    if (!estado.ganadora || carrusel.length === 0 || preparandoCarruselRef.current) return;
+    preparandoCarruselRef.current = true;
+    setPreparandoCarrusel(true);
+    const ids = [estado.ganadora.id, ...carrusel];
+    const momento =
+      grupo?.creationTime && grupoId
+        ? formatearEtiqueta(grupoId, grupo.creationTime)
+        : T.seleccion.laElegida;
+    const album = T.carrusel.nombreAlbum(momento);
+    const ok = await guardarEnAlbumCarrusel(album, ids);
+    preparandoCarruselRef.current = false;
+    setPreparandoCarrusel(false);
+    if (!ok) {
+      Alert.alert(T.carrusel.error);
+      return;
+    }
+    // Lo que va en el carrusel se queda: se marca como "guardar también"
+    // para que el paso de las otras nunca lo proponga para borrar.
+    setExtrasSeleccionadas((actual) => [...actual, ...carrusel.filter((id) => !actual.includes(id))]);
+    setAlbumCarrusel(album);
+    setPaso('foto');
+    Alert.alert(T.carrusel.listoTitulo, T.carrusel.listoTexto(ids.length, album), [
+      { text: T.comun.ahoraNo, style: 'cancel' },
+      {
+        text: T.carrusel.abrirInstagram,
+        onPress: () =>
+          Linking.openURL('instagram://app').catch(() =>
+            Alert.alert(T.carrusel.sinInstagramTitulo, T.carrusel.sinInstagramTexto(album))
+          ),
+      },
+    ]);
+  };
 
   const alternarExtra = (id: string) => {
     setExtrasSeleccionadas((actual) => {
@@ -442,6 +504,9 @@ export default function SeleccionScreen() {
             {guardadaEnAlbum && (
               <Text style={styles.avisoGuardada}>{T.seleccion.guardadaEnAlbum}</Text>
             )}
+            {albumCarrusel && (
+              <Text style={styles.avisoGuardada}>{T.carrusel.recordatorio(albumCarrusel)}</Text>
+            )}
 
             {mejorando && <Text style={styles.notaMejora}>{T.seleccion.mejorando}</Text>}
 
@@ -462,6 +527,18 @@ export default function SeleccionScreen() {
 
             <View style={styles.accionesContenedor}>
               <Boton onPress={compartir}>{T.seleccion.compartir}</Boton>
+              {/* Solo iPhone: en Android un álbum COPIA las fotos (ocuparía
+                  más espacio) y compartir fotos allí no es fiable. */}
+              {resto.length > 0 && Platform.OS === 'ios' && !borradoHecho && (
+                <Boton
+                  variante="texto"
+                  icono="square.stack"
+                  onPress={() => setPaso('carrusel')}
+                  disabled={borrando}
+                >
+                  {T.carrusel.enlace}
+                </Boton>
+              )}
 
               {resto.length > 0 ? (
                 <Boton variante="secundario" onPress={() => setPaso('otras')}>
@@ -477,6 +554,66 @@ export default function SeleccionScreen() {
             <Boton variante="texto" onPress={abrirMasOpciones} disabled={borrando || mejorando}>
               {T.seleccion.masOpciones}
             </Boton>
+          </ScrollView>
+        ) : paso === 'carrusel' ? (
+          <ScrollView contentContainerStyle={[styles.scrollContenido, { paddingTop: insets.top + 12 }]}>
+            <View style={styles.botonSalirTorneo}>
+              <BotonVolver texto={T.seleccion.volverAMiFoto} onPress={() => setPaso('foto')} />
+            </View>
+
+            <Text style={styles.titulo}>{T.carrusel.titulo}</Text>
+            <Text style={styles.pista}>{T.carrusel.subtitulo(MAX_CARRUSEL)}</Text>
+            <Text style={styles.pistaZoomExtras}>{T.seleccion.pistaLupa}</Text>
+
+            <View style={styles.extrasFilaMiniaturas}>
+              {/* La elegida, fija en primer lugar. */}
+              <View style={[styles.miniaturaExtraContenedor, styles.miniaturaExtraContenedorActiva]}>
+                <Image source={{ uri: estado.ganadora.uri }} style={styles.miniaturaExtra} />
+                <View style={styles.miniaturaExtraCheck}>
+                  <Text style={styles.miniaturaExtraCheckTexto}>1</Text>
+                </View>
+              </View>
+              {resto.map((foto) => {
+                const posicion = carrusel.indexOf(foto.id);
+                return (
+                  <Pressable key={foto.id} onPress={() => alternarCarrusel(foto.id)}>
+                    <View
+                      style={[
+                        styles.miniaturaExtraContenedor,
+                        posicion >= 0 && styles.miniaturaExtraContenedorActiva,
+                      ]}
+                    >
+                      <Image source={{ uri: foto.uri }} style={styles.miniaturaExtra} />
+                      {posicion >= 0 && (
+                        <View style={styles.miniaturaExtraCheck}>
+                          <Text style={styles.miniaturaExtraCheckTexto}>{posicion + 2}</Text>
+                        </View>
+                      )}
+                      <Pressable
+                        style={styles.miniaturaExtraLupa}
+                        onPress={() => setExtraAmpliadaId(foto.id)}
+                        hitSlop={8}
+                      >
+                        <IconSymbol name="magnifyingglass" size={16} color="#FFFFFF" />
+                      </Pressable>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.contadorEspacio}>{T.carrusel.contador(carrusel.length + 1)}</Text>
+
+            <View style={styles.accionesContenedor}>
+              <Boton
+                onPress={prepararCarrusel}
+                disabled={carrusel.length === 0 || preparandoCarrusel}
+              >
+                {preparandoCarrusel
+                  ? T.carrusel.preparando
+                  : T.carrusel.preparar(carrusel.length + 1)}
+              </Boton>
+            </View>
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={[styles.scrollContenido, { paddingTop: insets.top + 12 }]}>
