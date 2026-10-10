@@ -26,6 +26,7 @@ import { T } from '@/lib/i18n';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
 import { obtenerLiberadoTotal } from '@/lib/progreso';
 import { estimarTamanoRango, formatearTamano } from '@/lib/tamano';
+import { resumenVideosRango } from '@/lib/videos';
 
 // Misma paleta que index.tsx y seleccion.tsx — se repite aquí siguiendo el
 // mismo patrón que ya usan esas pantallas.
@@ -56,6 +57,8 @@ export default function ExploreScreen() {
   const [liberado, setLiberado] = useState(0);
   // Cuánto ocupa (aprox.) cada época, por id. Se va rellenando poco a poco.
   const [tamanos, setTamanos] = useState<Record<string, number | null>>({});
+  // Cuántos vídeos tiene cada época, por id (llega junto con su tamaño).
+  const [videosPorPeriodo, setVideosPorPeriodo] = useState<Record<string, number>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +134,13 @@ export default function ExploreScreen() {
         if (cancelado) return;
         const t = await estimarTamanoRango(p.id, p.desde, p.hasta, p.totalFotos);
         if (cancelado) return;
-        setTamanos((actual) => ({ ...actual, [p.id]: t }));
+        // Los vídeos ocupan mucho más que las fotos: se cuentan en el total.
+        // Misma clave que usa periodo.tsx, así comparten la estimación.
+        const v = await resumenVideosRango(`periodo-${p.desde}-${p.hasta}`, p.desde, p.hasta);
+        if (cancelado) return;
+        const total = (t ?? 0) + (v.bytes ?? 0);
+        setTamanos((actual) => ({ ...actual, [p.id]: total > 0 ? total : null }));
+        setVideosPorPeriodo((actual) => ({ ...actual, [p.id]: v.total }));
       }
     })();
     return () => {
@@ -195,7 +204,7 @@ export default function ExploreScreen() {
           data={periodosOrdenados}
           keyExtractor={(item) => item.id}
           style={styles.lista}
-          extraData={[tick, tamanos]}
+          extraData={[tick, tamanos, videosPorPeriodo]}
           ListHeaderComponent={
             liberado > 0 ? (
               <View style={styles.liberadoCaja}>
@@ -209,6 +218,11 @@ export default function ExploreScreen() {
           renderItem={({ item }) => {
             const revisado = estaRevisado(item);
             const tamano = tamanos[item.id];
+            const numVideos = videosPorPeriodo[item.id] ?? 0;
+            const conteo =
+              numVideos > 0
+                ? T.periodos.fotosYVideos(formatearConteo(item.totalFotos), T.comun.videos(numVideos))
+                : formatearConteo(item.totalFotos);
             return (
               <BouncyPressable
                 style={[styles.tarjeta, revisado && styles.tarjetaRevisada]}
@@ -227,12 +241,7 @@ export default function ExploreScreen() {
                     {revisado ? T.comun.revisado : ''}
                   </Text>
                   <Text style={styles.tarjetaConteo}>
-                    {tamano
-                      ? T.periodos.conteoConTamano(
-                          formatearConteo(item.totalFotos),
-                          formatearTamano(tamano)
-                        )
-                      : formatearConteo(item.totalFotos)}
+                    {tamano ? T.periodos.conteoConTamano(conteo, formatearTamano(tamano)) : conteo}
                   </Text>
                   {item.totalFotos >= AVISO_MUCHAS_FOTOS && (
                     <Text style={styles.tarjetaAviso}>{T.periodos.avisoMuchasFotos}</Text>

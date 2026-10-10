@@ -22,6 +22,7 @@ import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
 import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
 import { sumarLiberado } from '@/lib/progreso';
+import { resumenVideosRango } from '@/lib/videos';
 
 
 type CandidataConUri = { id: string; uri: string };
@@ -78,6 +79,27 @@ export default function PeriodoScreen() {
       setTick((t) => t + 1);
     }, [])
   );
+
+  // Vídeos de esta época: cuántos y cuánto ocupan (aprox.). Se vuelve a
+  // mirar al volver de la pantalla de vídeos, por si ha borrado alguno.
+  const [resumenVideos, setResumenVideos] = useState<{ total: number; bytes: number | null }>({
+    total: 0,
+    bytes: null,
+  });
+  useEffect(() => {
+    if (!desde || !hasta) return;
+    let cancelado = false;
+    resumenVideosRango(`periodo-${desde}-${hasta}`, Number(desde), Number(hasta)).then((r) => {
+      if (!cancelado) setResumenVideos(r);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [desde, hasta, tick]);
+
+  const abrirVideos = () => {
+    router.push({ pathname: '/videos', params: { desde, hasta, etiqueta } });
+  };
 
   // Id del grupo cuyo modal de etiqueta esta abierto ahora mismo, o null.
   const [grupoEditando, setGrupoEditando] = useState<string | null>(null);
@@ -235,6 +257,25 @@ export default function PeriodoScreen() {
       <BotonVolver onPress={() => router.back()} />
       <Text style={styles.titulo}>{etiqueta ?? T.periodo.tituloPorDefecto}</Text>
 
+      {resumenVideos.total > 0 && (
+        <Pressable
+          onPress={abrirVideos}
+          style={styles.cajaVideos}
+          accessibilityRole="button"
+        >
+          <IconSymbol name="video.fill" size={24} color={COLORES.acentoOscuro} />
+          <View style={styles.cajaVideosTextos}>
+            <Text style={styles.cajaVideosTitulo}>
+              {resumenVideos.bytes
+                ? T.periodo.videosConTamano(resumenVideos.total, formatearTamano(resumenVideos.bytes))
+                : T.periodo.videos(resumenVideos.total)}
+            </Text>
+            <Text style={styles.cajaVideosTexto}>{T.periodo.videosTexto}</Text>
+          </View>
+          <IconSymbol name="chevron.right" size={20} color={COLORES.textoSecundario} />
+        </Pressable>
+      )}
+
       {status !== '¡Listo!' && (
         <View style={styles.centrado}>
           {pilaEscaneo.length > 0 && (
@@ -358,6 +399,29 @@ export default function PeriodoScreen() {
 }
 
 const styles = StyleSheet.create({
+  cajaVideos: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORES.acentoSuave,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  cajaVideosTextos: {
+    flex: 1,
+    gap: 2,
+  },
+  cajaVideosTitulo: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORES.acentoOscuro,
+  },
+  cajaVideosTexto: {
+    fontSize: 13,
+    color: COLORES.acentoOscuro,
+  },
   container: {
     // paddingTop lo aporta insets.top en el render
     flex: 1,

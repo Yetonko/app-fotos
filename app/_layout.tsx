@@ -47,6 +47,10 @@ export default function RootLayout() {
             options={{ headerShown: false, animation: 'fade' }}
           />
           <Stack.Screen
+            name="videos"
+            options={{ headerShown: false, animation: 'fade' }}
+          />
+          <Stack.Screen
             name="album"
             options={{ headerShown: false, animation: 'fade' }}
           />

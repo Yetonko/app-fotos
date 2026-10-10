@@ -29,6 +29,10 @@ const MAPPING = {
   'chevron.left': 'chevron-left',
   'magnifyingglass': 'search',
   'pencil': 'edit',
+  'play.fill': 'play-arrow',
+  'livephoto': 'motion-photos-on',
+  'video.fill': 'videocam',
+  'xmark': 'close',
 } as IconMapping;
 
 /**

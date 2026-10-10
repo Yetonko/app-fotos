@@ -75,7 +75,8 @@
           "savePhotosPermission": "Fondly necesita permiso para guardar la versión mejorada en tu carrete.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

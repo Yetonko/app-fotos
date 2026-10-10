@@ -184,7 +184,13 @@ export default function HomeScreen() {
 
         const gruposConDistancias: GrupoConDistancias[] = [];
 
-        await detectarRafagas(resultado.assets, {
+        // Las capturas de pantalla no son momentos para publicar: fuera,
+        // así tampoco acaban de portada de un momento.
+        const sinCapturas = resultado.assets.filter(
+          (a) => !a.mediaSubtypes?.includes('screenshot')
+        );
+
+        await detectarRafagas(sinCapturas, {
           onProgreso: (indice, total, primeraFotoUri) => {
             setProgresoEscaneo(total > 0 ? (indice + 1) / total : 0);
             if (primeraFotoUri) {

@@ -105,6 +105,9 @@ export default function SeleccionScreen() {
   // 'foto' celebra y comparte la elegida; 'otras' decide qué hacer con el
   // resto de la ráfaga (el único sitio donde se borran las no elegidas).
   const [paso, setPaso] = useState<'foto' | 'otras' | 'carrusel'>('foto');
+  // Si la elegida es una Live Photo: su vídeo de unos 3 segundos, ya
+  // copiado dentro de la app y listo para compartir.
+  const [movimientoUri, setMovimientoUri] = useState<string | null>(null);
   // Fotos (además de la elegida) que irán en el carrusel, en el orden en que
   // las toca. Al prepararlo pasan a "me la quedo" para no borrarse después.
   const [carrusel, setCarrusel] = useState<string[]>([]);
@@ -181,6 +184,25 @@ export default function SeleccionScreen() {
       guardarEnAlbumFavoritas(estado.ganadora.id).then(setGuardadaEnAlbum);
     }
   }, [estado.ganadora, grupoId]);
+
+  // Solo iPhone: ¿la elegida es una Live Photo? Si lo es, el sistema nos da
+  // su vídeo (sin descargar nada de iCloud) para ofrecer publicarla en
+  // movimiento.
+  useEffect(() => {
+    setMovimientoUri(null);
+    if (!estado.ganadora || Platform.OS !== 'ios') return;
+    let cancelado = false;
+    MediaLibrary.getAssetInfoAsync(estado.ganadora.id, { shouldDownloadFromNetwork: false })
+      .then((info) => {
+        if (cancelado || !info.mediaSubtypes?.includes('livePhoto')) return;
+        const uri = info.pairedVideoAsset?.uri;
+        if (uri) setMovimientoUri(uri);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, [estado.ganadora]);
 
   // Recalcula en vivo cuánto espacio se liberaría con la selección actual:
   // se dispara nada más elegir ganadora, y cada vez que el usuario marca o
@@ -301,6 +323,15 @@ export default function SeleccionScreen() {
       } catch {
         Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
       }
+    }
+  };
+
+  const compartirEnMovimiento = async () => {
+    if (!movimientoUri) return;
+    try {
+      await Share.share({ url: movimientoUri });
+    } catch {
+      Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
     }
   };
 
@@ -527,8 +558,14 @@ export default function SeleccionScreen() {
 
             <View style={styles.accionesContenedor}>
               <Boton onPress={compartir}>{T.seleccion.compartir}</Boton>
-              {/* Solo iPhone: en Android un álbum COPIA las fotos (ocuparía
-                  más espacio) y compartir fotos allí no es fiable. */}
+              {/* Otras formas de publicarla, discretas bajo el botón
+                  principal. Solo iPhone: en Android un álbum COPIA las fotos
+                  (ocuparía más espacio) y compartir fotos allí no es fiable. */}
+              {movimientoUri && (
+                <Boton variante="texto" icono="livephoto" onPress={compartirEnMovimiento}>
+                  {T.seleccion.enMovimiento}
+                </Boton>
+              )}
               {resto.length > 0 && Platform.OS === 'ios' && !borradoHecho && (
                 <Boton
                   variante="texto"

@@ -95,8 +95,8 @@ export function generarPeriodos(fechaMasAntigua: number, ahora: number = Date.no
 }
 
 // Conteo barato: le pedimos a expo-media-library el total de fotos del
-// rango sin descargar ninguna (first: 1 solo pide la primera para poder
-// leer totalCount). Se usa para avisar antes de entrar a un periodo con
+// rango sin descargar ninguna (solo pide unas pocas para poder leer
+// totalCount y elegir portada). Se usa para avisar antes de entrar a un periodo con
 // muchas fotos, sin tener que analizarlas todas primero.
 export type ConteoPeriodo = {
   total: number;
@@ -111,11 +111,15 @@ export async function contarFotosEnPeriodo(periodo: Periodo): Promise<ConteoPeri
     mediaType: 'photo',
     createdAfter: periodo.desde,
     createdBefore: periodo.hasta,
-    first: 1,
+    // Unas pocas, para poder saltarse las capturas de pantalla al elegir
+    // portada (sigue sin descargar ninguna foto).
+    first: 10,
   });
+  const portada =
+    resultado.assets.find((a) => !a.mediaSubtypes?.includes('screenshot')) ?? resultado.assets[0];
   return {
     total: resultado.totalCount,
-    portadaUri: resultado.assets[0]?.uri ?? null,
+    portadaUri: portada?.uri ?? null,
   };
 }
 

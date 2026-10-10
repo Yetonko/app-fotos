@@ -12,6 +12,16 @@ export const es = {
     movil: 'móvil',
     // "1 foto" / "1.234 fotos"
     fotos: (n: number) => `${formatearNumero(n)} ${n === 1 ? 'foto' : 'fotos'}`,
+    // "1 vídeo" / "12 vídeos"
+    videos: (n: number) => `${formatearNumero(n)} ${n === 1 ? 'vídeo' : 'vídeos'}`,
+    // "3 fotos", "1 vídeo", "2 fotos y 1 vídeo"
+    fotosYVideos: (fotos: number, videos: number) => {
+      const f = `${formatearNumero(fotos)} ${fotos === 1 ? 'foto' : 'fotos'}`;
+      const v = `${formatearNumero(videos)} ${videos === 1 ? 'vídeo' : 'vídeos'}`;
+      if (videos === 0) return f;
+      if (fotos === 0) return v;
+      return `${f} y ${v}`;
+    },
     intentaloDeNuevo: 'Inténtalo de nuevo.',
     cancelar: 'Cancelar',
     ahoraNo: 'Ahora no',
@@ -77,23 +87,24 @@ export const es = {
 
   momento: {
     titulo: 'Ahora',
-    subtitulo: 'Elige tus fotos de hace un rato y compártelas',
+    subtitulo: 'Elige tus fotos y vídeos de hace un rato y compártelos',
     ventana5min: 'Últimos 5 min',
     ventana1h: 'Última hora',
     ventanaHoy: 'Hoy',
-    vacio: 'No hay fotos en este rango. Prueba a ampliar la ventana de tiempo.',
+    vacio: 'No hay fotos ni vídeos en este rango. Prueba a ampliar la ventana de tiempo.',
     publicar: 'Elegir',
     quitar: 'Quitar',
     descartar: 'Descartar',
     preparando: 'Preparando...',
-    publicarN: (n: number) => `Publicar ${n} ${n === 1 ? 'foto' : 'fotos'}`,
-    listasTitulo: '¡Tus fotos están listas!',
-    listasTexto: (n: number) =>
-      `Hemos guardado tus ${n} fotos juntas en tu álbum Fondly. Ábrelo desde Instagram para publicarlas como carrusel.`,
+    // cuantas: "3 fotos", "2 fotos y 1 vídeo"...
+    publicarN: (cuantas: string) => `Publicar ${cuantas}`,
+    listasTitulo: '¡Todo listo para publicar!',
+    listasTexto: (cuantas: string) =>
+      `Tus ${cuantas} están juntos en el álbum «Fondly» de Fotos, y también siguen en tu carrete.\n\nEn Instagram, toca + y elige ese álbum para publicarlos juntos.`,
     entendido: 'Entendido',
     borrarDescartadasTitulo: '¿Borrar las descartadas?',
-    borrarDescartadasTexto: (n: number) =>
-      `Descartaste ${n} ${n === 1 ? 'foto' : 'fotos'}. ¿Quieres borrarlas del carrete para hacer sitio? Podrás recuperarlas 30 días desde Fotos.`,
+    borrarDescartadasTexto: (cuantas: string) =>
+      `Descartaste ${cuantas}. ¿Quieres borrarlos del carrete para hacer sitio? Podrás recuperarlos 30 días desde Fotos.`,
     noDejarlas: 'No, dejarlas',
     borrar: 'Borrar',
   },
@@ -107,6 +118,11 @@ export const es = {
     ponleNombre: 'Ponle nombre',
     cambiarNombre: 'Cambiar nombre',
     borrarMomento: (n: number) => `Borrar las ${n} fotos de este momento`,
+    // Caja que lleva a los vídeos de la época
+    videos: (n: number) => `${formatearNumero(n)} ${n === 1 ? 'vídeo' : 'vídeos'}`,
+    videosConTamano: (n: number, tamano: string) =>
+      `${formatearNumero(n)} ${n === 1 ? 'vídeo' : 'vídeos'} · unos ${tamano}`,
+    videosTexto: 'Mira cuáles ocupan más y haz sitio',
     frasesEscaneo: [
       'Mirando tus fotos con cariño…',
       'Agrupando lo que va junto…',
@@ -216,6 +232,8 @@ export const es = {
     laElegida: '¡Esta es la elegida! ✨',
     guardadaEnAlbum: '✓ Ya está en tu álbum Fondly',
     compartir: 'Compartir o publicar',
+    // Solo si la elegida es una Live Photo: comparte su vídeo de 3 segundos
+    enMovimiento: 'Publicarla en movimiento (vídeo de 3 s)',
     seguirConOtras: (n: number) =>
       n === 1 ? 'Siguiente: qué hago con la otra' : `Siguiente: qué hago con las otras ${n}`,
     masOpciones: 'Más opciones',
@@ -277,6 +295,35 @@ export const es = {
     error: 'No hemos podido preparar el carrusel. Inténtalo de nuevo.',
   },
 
+  // Vídeos de una época (para hacer sitio) y visor de vídeo
+  videos: {
+    titulo: (epoca: string) => (epoca ? `Vídeos · ${epoca}` : 'Vídeos'),
+    subtitulo:
+      'Los que más ocupan, primero. Toca uno para verlo y marca los que no quieras. No se borra nada hasta que lo confirmes.',
+    vacio: 'No quedan vídeos en esta época.',
+    errorCarga: 'No hemos podido ver los vídeos de esta época. Inténtalo de nuevo.',
+    sinQuerer: (n: number) =>
+      n === 1
+        ? 'Hay 1 vídeo de menos de 2 segundos. Suele grabarse sin querer. Si lo marcas, podrás revisarlo en la lista antes de borrar.'
+        : `Hay ${formatearNumero(n)} vídeos de menos de 2 segundos. Suelen grabarse sin querer. Si los marcas, podrás revisarlos en la lista antes de borrar.`,
+    marcarSinQuerer: 'Marcarlos para borrar',
+    verVideo: 'Ver el vídeo',
+    marcarParaBorrar: 'Marcar para borrar',
+    marcar: 'Marcar',
+    marcado: 'Marcado',
+    borrarN: (n: number) => `Borrar ${n === 1 ? '1 vídeo' : `${formatearNumero(n)} vídeos`}`,
+    borrarTitulo: (n: number) => (n === 1 ? '¿Borrar este vídeo?' : `¿Borrar ${formatearNumero(n)} vídeos?`),
+    borrarTexto: (n: number, recuperacion: string) =>
+      `${n === 1 ? 'Se borrará el vídeo marcado' : 'Se borrarán los vídeos marcados'}. El resto se queda como está. ${recuperacion}`,
+    borrados: (n: number) => (n === 1 ? 'Vídeo borrado.' : `${formatearNumero(n)} vídeos borrados.`),
+    nadaBorradoTitulo: 'No se ha borrado nada',
+    nadaBorradoTexto: 'Tus vídeos siguen en el carrete, no ha cambiado nada.',
+    errorBorrarTexto: 'Tus vídeos siguen en el carrete. Si querías borrarlos, inténtalo de nuevo.',
+    cargandoVideo: 'Preparando el vídeo…',
+    errorVer: 'No hemos podido abrir este vídeo. Puedes verlo desde Fotos.',
+    cerrar: 'Cerrar',
+  },
+
   periodos: {
     titulo: 'Épocas',
     subtitulo: 'Haz sitio repasando tus fotos antiguas',
@@ -284,6 +331,7 @@ export const es = {
     vacio: 'No hemos encontrado fotos en tu carrete todavía.',
     hasLiberado: (tamano: string) => `Has liberado ${tamano} con Fondly`,
     conteoConTamano: (fotos: string, tamano: string) => `${fotos} · unos ${tamano}`,
+    fotosYVideos: (fotos: string, videos: string) => `${fotos} y ${videos}`,
     avisoMuchasFotos: 'Son bastantes fotos, puede tardar un poco más',
     errorPermisos: (dispositivo: string) =>
       `No hemos podido acceder a tus fotos. Revisa los permisos en Ajustes de tu ${dispositivo}.`,

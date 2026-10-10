@@ -3,9 +3,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { formatearDecimal } from './idioma';
 
-// Tamaño en disco de UNA foto, o null si no se puede saber sin descargarla
-// (p. ej. está solo en iCloud). Nunca descarga nada de la red.
-async function tamanoDeFoto(id: string): Promise<number | null> {
+// Tamaño en disco de UNA foto o vídeo, o null si no se puede saber sin
+// descargarlo (p. ej. está solo en iCloud). Nunca descarga nada de la red.
+export async function tamanoDeFoto(id: string): Promise<number | null> {
   try {
     const info = await MediaLibrary.getAssetInfoAsync(id, { shouldDownloadFromNetwork: false });
     if (!info.localUri) return null;

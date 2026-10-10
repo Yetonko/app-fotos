@@ -12,7 +12,16 @@ import * as MediaLibrary from 'expo-media-library';
 // Ventanas de tiempo que ofrece el selector rápido de la pantalla.
 export type VentanaMomento = '5min' | '1h' | 'hoy';
 
-export type FotoMomento = { id: string; uri: string; creationTime: number };
+// En "Ahora" entran fotos y vídeos: lo que se publica de un concierto
+// suele ser un clip.
+export type FotoMomento = {
+  id: string;
+  uri: string;
+  creationTime: number;
+  esVideo: boolean;
+  duracion: number; // segundos (0 en fotos)
+  filename: string;
+};
 
 // Traduce la ventana elegida a un timestamp "desde" (ms). Para 'hoy'
 // usamos el inicio del día natural del dispositivo, no "hace 24 horas",
@@ -26,7 +35,7 @@ function inicioDeVentana(ventana: VentanaMomento, ahora: number): number {
   return d.getTime();
 }
 
-// Trae las fotos de la ventana pedida, más recientes primero. `first: 60`
+// Trae las fotos y vídeos de la ventana pedida, más recientes primero. `first: 60`
 // es un tope de seguridad: en 5 min o 1 h es de sobra, y para 'hoy' evita
 // cargar cientos de miniaturas de golpe (el modo momento es para elegir
 // unas pocas, no para revisar el día entero).
@@ -37,7 +46,7 @@ export async function fotosDeVentana(
   const desde = inicioDeVentana(ventana, ahora);
 
   const resultado = await MediaLibrary.getAssetsAsync({
-    mediaType: 'photo',
+    mediaType: ['photo', 'video'],
     createdAfter: desde,
     createdBefore: ahora,
     sortBy: [[MediaLibrary.SortBy.creationTime, false]], // más recientes primero
@@ -48,6 +57,9 @@ export async function fotosDeVentana(
     id: a.id,
     uri: a.uri,
     creationTime: a.creationTime,
+    esVideo: a.mediaType === 'video',
+    duracion: a.duration ?? 0,
+    filename: a.filename,
   }));
 }
 

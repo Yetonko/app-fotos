@@ -8,6 +8,13 @@ import * as MediaLibrary from 'expo-media-library';
 import { fotosDeVentana, ordenarPorTiempo, VentanaMomento, FotoMomento } from '@/lib/momento-rapido';
 import { guardarEnAlbumFavoritas } from '@/lib/album';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
+import { VisorVideo } from '@/components/visor-video';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import {
+  borrarCopiaCompartida,
+  formatearDuracion,
+  prepararVideoParaCompartir,
+} from '@/lib/videos';
 import { Boton } from '@/components/boton';
 import { COLORES } from '@/constants/estilo';
 import { T } from '@/lib/i18n';
@@ -38,7 +45,11 @@ export default function MomentoScreen() {
   const [descartadas, setDescartadas] = useState<string[]>([]);
 
   const [ampliadaId, setAmpliadaId] = useState<string | null>(null);
+  const [viendoVideoId, setViendoVideoId] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
+  // Guarda inmediata contra el doble toque en Publicar (copiar un vídeo
+  // tarda y el botón tarda un instante en desactivarse).
+  const publicandoRef = useRef(false);
   // Fotos ya copiadas al álbum Fondly en esta visita: si cierra el compartir
   // y vuelve a publicar, no se copian otra vez (cada copia duplica la foto).
   const guardadasEnAlbumRef = useRef(new Set<string>());
@@ -47,12 +58,16 @@ export default function MomentoScreen() {
   useEffect(() => {
     let cancelado = false;
     setCargando(true);
-    fotosDeVentana(ventana).then((res) => {
-      if (!cancelado) {
-        setFotos(res);
-        setCargando(false);
-      }
-    });
+    fotosDeVentana(ventana)
+      .then((res) => {
+        if (!cancelado) setFotos(res);
+      })
+      .catch(() => {
+        if (!cancelado) setFotos([]);
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
+      });
     return () => {
       cancelado = true;
     };
@@ -74,6 +89,19 @@ export default function MomentoScreen() {
 
   const fotosMarcadas = fotos.filter((f) => marcadas.includes(f.id));
   const fotosDescartadas = fotos.filter((f) => descartadas.includes(f.id));
+  // El visor de fotos solo pasa por fotos; los vídeos se abren en el suyo.
+  const fotosVisibles = visibles.filter((f) => !f.esVideo);
+
+  // "3 fotos", "1 vídeo", "2 fotos y 1 vídeo"
+  const describir = (lista: FotoMomento[]) => {
+    const nv = lista.filter((f) => f.esVideo).length;
+    return T.comun.fotosYVideos(lista.length - nv, nv);
+  };
+
+  const abrir = (foto: FotoMomento) => {
+    if (foto.esVideo) setViendoVideoId(foto.id);
+    else setAmpliadaId(foto.id);
+  };
 
   // ── Publicar: guarda las marcadas en el álbum Fondly y abre el compartir
   //    de la primera. Con varias, iOS no garantiza el carrusel, así que la
@@ -81,6 +109,16 @@ export default function MomentoScreen() {
   // Abre el compartir de una foto. Devuelve false si ella cierra el menú
   // sin compartir (iOS lo indica; en Android no se sabe y se da por hecho).
   const compartirFoto = async (foto: FotoMomento): Promise<boolean> => {
+    if (foto.esVideo) {
+      const url = await prepararVideoParaCompartir(foto);
+      try {
+        const resultado = await Share.share({ url });
+        return resultado.action !== Share.dismissedAction;
+      } finally {
+        // La copia temporal ya no hace falta: fuera, para no ocupar espacio.
+        await borrarCopiaCompartida(url);
+      }
+    }
     const info = await MediaLibrary.getAssetInfoAsync(foto.id);
     const resultado = await Share.share({ url: info.localUri ?? foto.uri });
     return resultado.action !== Share.dismissedAction;
@@ -98,7 +136,8 @@ export default function MomentoScreen() {
   };
 
   const publicar = async () => {
-    if (fotosMarcadas.length === 0) return;
+    if (fotosMarcadas.length === 0 || publicandoRef.current) return;
+    publicandoRef.current = true;
     setPublicando(true);
     try {
       const ordenadas = ordenarPorTiempo(fotosMarcadas);
@@ -116,14 +155,21 @@ export default function MomentoScreen() {
           if (!ok) throw new Error('No se pudo guardar en el álbum');
           guardadasEnAlbumRef.current.add(foto.id);
         }
-        Alert.alert(T.momento.listasTitulo, T.momento.listasTexto(ordenadas.length), [
+        Alert.alert(T.momento.listasTitulo, T.momento.listasTexto(describir(ordenadas)), [
           {
             text: T.momento.entendido,
             onPress: async () => {
+              // Copiar un vídeo para compartirlo puede tardar unos segundos.
+              if (publicandoRef.current) return;
+              publicandoRef.current = true;
+              setPublicando(true);
               try {
                 trasCompartir(await compartirFoto(ordenadas[0]));
               } catch {
                 Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
+              } finally {
+                publicandoRef.current = false;
+                setPublicando(false);
               }
             },
           },
@@ -132,6 +178,7 @@ export default function MomentoScreen() {
     } catch {
       Alert.alert(T.comun.errorCompartir, T.comun.intentaloDeNuevo);
     } finally {
+      publicandoRef.current = false;
       setPublicando(false);
     }
   };
@@ -140,7 +187,7 @@ export default function MomentoScreen() {
   const ofrecerBorrarDescartadas = () => {
     Alert.alert(
       T.momento.borrarDescartadasTitulo,
-      T.momento.borrarDescartadasTexto(fotosDescartadas.length),
+      T.momento.borrarDescartadasTexto(describir(fotosDescartadas)),
       [
         { text: T.momento.noDejarlas, style: 'cancel', onPress: () => router.back() },
         {
@@ -212,8 +259,16 @@ export default function MomentoScreen() {
             const marcada = marcadas.includes(foto.id);
             return (
               <View key={foto.id} style={styles.celda}>
-                <Pressable onPress={() => setAmpliadaId(foto.id)}>
+                <Pressable onPress={() => abrir(foto)}>
                   <Image source={{ uri: foto.uri }} style={styles.miniatura} />
+                  {foto.esVideo && (
+                    <View style={styles.insigniaVideo}>
+                      <IconSymbol name="play.fill" size={12} color="#FFFFFF" />
+                      <Text style={styles.insigniaVideoTexto}>
+                        {formatearDuracion(foto.duracion)}
+                      </Text>
+                    </View>
+                  )}
                 </Pressable>
 
                 {marcada && (
@@ -251,19 +306,23 @@ export default function MomentoScreen() {
       {marcadas.length > 0 && (
         <View style={styles.barraInferior}>
           <Boton onPress={publicar} disabled={publicando}>
-            {publicando ? T.momento.preparando : T.momento.publicarN(marcadas.length)}
+            {publicando ? T.momento.preparando : T.momento.publicarN(describir(fotosMarcadas))}
           </Boton>
         </View>
       )}
 
       {/* ── Visor ampliado (reutiliza el modal navegable con swipe) ── */}
       <ZoomablePhotoModal
-        fotos={visibles.map((f) => ({ id: f.id, uri: f.uri }))}
-        indiceInicial={Math.max(0, visibles.findIndex((f) => f.id === ampliadaId))}
+        fotos={fotosVisibles.map((f) => ({ id: f.id, uri: f.uri }))}
+        indiceInicial={Math.max(0, fotosVisibles.findIndex((f) => f.id === ampliadaId))}
         visible={!!ampliadaId}
         onClose={() => setAmpliadaId(null)}
         onElegir={(foto) => alternarMarcada(foto.id)}
       />
+
+      {viendoVideoId && (
+        <VisorVideo videoId={viendoVideoId} onClose={() => setViendoVideoId(null)} />
+      )}
     </View>
   );
 }
@@ -344,6 +403,23 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 14,
     backgroundColor: COLORES.borde,
+  },
+  insigniaVideo: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  insigniaVideoTexto: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   marcaCheck: {
     position: 'absolute',
