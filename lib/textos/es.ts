@@ -57,6 +57,10 @@ export const es = {
     revisarYLimpiar: 'Revisar y limpiar ✨',
     explorarTitulo: 'Revisar fotos más antiguas',
     explorarSubtitulo: 'Elige tus mejores momentos de otros periodos',
+    // Si entre las fotos recientes no hay ninguna ráfaga
+    vacioTitulo: 'Todavía no hay ráfagas nuevas',
+    vacioTexto:
+      'Cuando hagas varias fotos seguidas de un mismo momento, aparecerán aquí. Mientras, puedes repasar fotos más antiguas aquí abajo.',
     // Si no nos da permiso para ver sus fotos
     sinPermisoTitulo: 'Necesitamos ver tus fotos',
     sinPermisoTexto: (dispositivo: string) =>

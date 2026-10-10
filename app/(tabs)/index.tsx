@@ -399,6 +399,12 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.grupoId}
         style={styles.lista}
         extraData={tick}
+        ListEmptyComponent={
+          <View style={styles.vacioContenedor}>
+            <Text style={styles.vacioTitulo}>{T.home.vacioTitulo}</Text>
+            <Text style={styles.vacioTexto}>{T.home.vacioTexto}</Text>
+          </View>
+        }
         renderItem={({ item, index }) => {
           const ganadora = obtenerGanadora(item.grupoId);
           const portada = ganadora?.uri ?? item.candidatas[0]?.uri;
@@ -471,6 +477,23 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  vacioContenedor: {
+    paddingVertical: 40,
+    paddingHorizontal: 10,
+    gap: 10,
+  },
+  vacioTitulo: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORES.texto,
+    textAlign: 'center',
+  },
+  vacioTexto: {
+    fontSize: 17,
+    lineHeight: 24,
+    color: COLORES.textoSecundario,
+    textAlign: 'center',
+  },
   sinPermisoContenedor: {
     flex: 1,
     justifyContent: 'center',
