@@ -5,64 +5,43 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { T } from '@/lib/i18n';
-import { direccionParaVer, limpiarExportaciones } from '@/lib/videos';
 
 type Props = {
-  // Id del vídeo del carrete que se quiere ver, o null para cerrar.
-  videoId: string | null;
+  // Dirección del vídeo tal como la da la fototeca (ph://… en iPhone).
+  // OJO: no usar localUri, el reproductor no tiene permiso para leerla.
+  uri: string;
   onClose: () => void;
 };
 
-// Visor a pantalla completa para ver un vídeo antes de decidir. Usa el
-// reproductor del propio iPhone (con sus controles de siempre).
-export function VisorVideo({ videoId, onClose }: Props) {
+// Visor a pantalla completa para ver un vídeo antes de decidir, con sonido
+// y los controles de siempre del iPhone. Nunca sale de Fondly.
+export function VisorVideo({ uri, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const [direccion, setDireccion] = useState<string | null>(null);
-  const [error, setError] = useState(false);
+  const [estado, setEstado] = useState<'cargando' | 'listo' | 'error'>('cargando');
 
-  useEffect(() => {
-    setDireccion(null);
-    setError(false);
-    if (!videoId) return;
-    let cancelado = false;
-    direccionParaVer(videoId)
-      .then((d) => {
-        if (cancelado) return;
-        if (d) setDireccion(d);
-        else setError(true);
-      })
-      .catch(() => {
-        if (!cancelado) setError(true);
-      });
-    return () => {
-      cancelado = true;
-    };
-  }, [videoId]);
-
-  const player = useVideoPlayer(direccion, (p) => {
+  const player = useVideoPlayer(uri, (p) => {
     p.loop = true;
     p.play();
   });
 
-  // Si el reproductor no puede con el fichero, mensaje en vez de negro.
   useEffect(() => {
+    if (player.status === 'readyToPlay') setEstado('listo');
     const sub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'error') setError(true);
+      if (status === 'readyToPlay') setEstado('listo');
+      if (status === 'error') setEstado('error');
     });
     return () => sub.remove();
   }, [player]);
 
-  // Al cerrar, fuera las copias que haya hecho el iPhone para reproducirlo.
-  useEffect(() => () => void limpiarExportaciones(), []);
-
   return (
-    <Modal visible={!!videoId} animationType="fade" onRequestClose={onClose}>
+    <Modal visible animationType="fade" onRequestClose={onClose}>
       <View style={styles.fondo}>
-        {direccion && !error ? (
+        {estado !== 'error' && (
           <VideoView player={player} style={styles.video} nativeControls contentFit="contain" />
-        ) : (
-          <View style={styles.centro}>
-            {error ? (
+        )}
+        {estado !== 'listo' && (
+          <View style={[StyleSheet.absoluteFill, styles.centro]} pointerEvents="none">
+            {estado === 'error' ? (
               <Text style={styles.texto}>{T.videos.errorVer}</Text>
             ) : (
               <>
@@ -95,7 +74,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   centro: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
@@ -109,9 +87,9 @@ const styles = StyleSheet.create({
   cerrar: {
     position: 'absolute',
     left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',

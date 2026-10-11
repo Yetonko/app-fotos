@@ -1,5 +1,7 @@
 import * as MediaLibrary from 'expo-media-library';
 
+import { esNoMedible } from './videos';
+
 // El "modo momento" es un flujo rápido, aparte del torneo: en vez de
 // agrupar ráfagas y comparar, trae sin más las fotos recientes de una
 // ventana de tiempo corta (lo que acabas de hacer en el concierto, la
@@ -21,6 +23,8 @@ export type FotoMomento = {
   esVideo: boolean;
   duracion: number; // segundos (0 en fotos)
   filename: string;
+  // Vídeo que no se puede medir sin convertirlo entero (cámara lenta…).
+  noMedible: boolean;
 };
 
 // Traduce la ventana elegida a un timestamp "desde" (ms). Para 'hoy'
@@ -60,6 +64,7 @@ export async function fotosDeVentana(
     esVideo: a.mediaType === 'video',
     duracion: a.duration ?? 0,
     filename: a.filename,
+    noMedible: a.mediaType === 'video' && esNoMedible(a.mediaSubtypes),
   }));
 }
 

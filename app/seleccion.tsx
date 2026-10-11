@@ -558,6 +558,9 @@ export default function SeleccionScreen() {
 
             <View style={styles.accionesContenedor}>
               <Boton onPress={compartir}>{T.seleccion.compartir}</Boton>
+              {Platform.OS === 'ios' && (
+                <Text style={styles.notaCompartir}>{T.seleccion.notaCompartir}</Text>
+              )}
               {/* Otras formas de publicarla, discretas bajo el botón
                   principal. Solo iPhone: en Android un álbum COPIA las fotos
                   (ocuparía más espacio) y compartir fotos allí no es fiable. */}
@@ -1124,6 +1127,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  notaCompartir: {
+    fontSize: 13,
+    color: COLORES.textoSecundario,
+    textAlign: 'center',
+    marginTop: -4,
+  },
   accionesContenedor: {
     width: '100%',
     gap: 12,

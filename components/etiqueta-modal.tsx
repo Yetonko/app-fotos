@@ -11,13 +11,27 @@ type Props = {
   etiquetaFecha: string;
   onGuardar: (nombre: string) => void;
   onCerrar: () => void;
+  // Opcionales, para reutilizar el modal al etiquetar fotos a mano.
+  titulo?: string;
+  explicacion?: string;
+  // Nombres ya usados: un toque los rellena (misma experiencia, otro día).
+  sugerencias?: string[];
 };
 
 // Modal sencillo (Modal + TextInput, sin gesture-handler) para escribir o
 // editar el nombre de actividad de un grupo. Mismo patron sin gestos que
 // ya usa ZoomablePhotoModal, para evitar el crash conocido de
 // react-native-gesture-handler dentro de modales en Expo Go.
-export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar, onCerrar }: Props) {
+export function EtiquetaModal({
+  visible,
+  valorInicial,
+  etiquetaFecha,
+  onGuardar,
+  onCerrar,
+  titulo,
+  explicacion,
+  sugerencias,
+}: Props) {
   const [texto, setTexto] = useState(valorInicial);
 
   // Al abrir el modal (o cambiar de grupo), sincroniza el texto con el
@@ -44,8 +58,8 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
       <View style={styles.fondo}>
         <View style={styles.tarjeta}>
           <Text style={styles.etiquetaFecha}>{etiquetaFecha}</Text>
-          <Text style={styles.titulo}>{T.etiqueta.titulo}</Text>
-          <Text style={styles.explicacion}>{T.etiqueta.explicacion}</Text>
+          <Text style={styles.titulo}>{titulo ?? T.etiqueta.titulo}</Text>
+          <Text style={styles.explicacion}>{explicacion ?? T.etiqueta.explicacion}</Text>
           <TextInput
             style={styles.input}
             value={texto}
@@ -56,6 +70,15 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
             returnKeyType="done"
             onSubmitEditing={guardar}
           />
+          {sugerencias && sugerencias.length > 0 && (
+            <View style={styles.sugerencias}>
+              {sugerencias.slice(0, 6).map((s) => (
+                <Pressable key={s} onPress={() => setTexto(s)} style={styles.sugerencia} hitSlop={4}>
+                  <Text style={styles.sugerenciaTexto}>{s}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           <Boton style={styles.botonGuardar} onPress={guardar}>
             {T.etiqueta.guardar}
@@ -77,6 +100,23 @@ export function EtiquetaModal({ visible, valorInicial, etiquetaFecha, onGuardar,
 }
 
 const styles = StyleSheet.create({
+  sugerencias: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  sugerencia: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: COLORES.acentoSuave,
+  },
+  sugerenciaTexto: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORES.acentoOscuro,
+  },
   explicacion: {
     fontSize: 15,
     color: COLORES.textoSecundario,

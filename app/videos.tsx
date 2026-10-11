@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import { T } from '@/lib/i18n';
 import { fechaConDia } from '@/lib/idioma';
 import { sumarLiberado } from '@/lib/progreso';
 import { formatearTamano } from '@/lib/tamano';
+import { prepararTorneoVideo, videosDelMismoRato } from '@/lib/torneo-video';
 import {
   DURACION_SIN_QUERER,
   formatearDuracion,
@@ -55,12 +56,25 @@ export default function VideosScreen() {
   const [errorCarga, setErrorCarga] = useState(false);
   const [tamanos, setTamanos] = useState<Record<string, number | null>>({});
   const [marcados, setMarcados] = useState<string[]>([]);
-  const [viendoId, setViendoId] = useState<string | null>(null);
+  const [viendoUri, setViendoUri] = useState<string | null>(null);
   const [borrando, setBorrando] = useState(false);
   // Guarda inmediata contra un doble toque mientras se mide y se borra.
   const borrandoRef = useRef(false);
   // Y contra abrir dos avisos de borrar seguidos.
   const avisoAbiertoRef = useRef(false);
+
+  // Al volver del torneo de vídeos (donde puede haber borrado), se recarga.
+  const [recarga, setRecarga] = useState(0);
+  const primeraVez = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (primeraVez.current) {
+        primeraVez.current = false;
+        return;
+      }
+      setRecarga((n) => n + 1);
+    }, [])
+  );
 
   useEffect(() => {
     if (!desde || !hasta) {
@@ -84,7 +98,7 @@ export default function VideosScreen() {
     return () => {
       cancelado = true;
     };
-  }, [desde, hasta]);
+  }, [desde, hasta, recarga]);
 
   // Mide de uno en uno, en segundo plano, los que encabezan la lista.
   const hayVideos = videos !== null && videos.length > 0;
@@ -112,6 +126,15 @@ export default function VideosScreen() {
   const sinQuererPorMarcar = sinQuerer.filter((v) => !marcados.includes(v.id));
   // Lo que se borraría: SOLO lo marcado que sigue en la lista.
   const idsABorrar = lista.filter((v) => marcados.includes(v.id)).map((v) => v.id);
+
+  // Vídeos grabados seguidos: se ofrece un torneo para quedarse con el mejor.
+  // (sin los que ya ha marcado para borrar).
+  const grupos = videosDelMismoRato(lista.filter((v) => !marcados.includes(v.id)));
+  const abrirTorneo = (grupo: VideoCarrete[]) => {
+    if (borrando) return;
+    prepararTorneoVideo(grupo);
+    router.push('/torneo-video');
+  };
 
   const alternar = (id: string) => {
     if (borrando) return;
@@ -205,6 +228,28 @@ export default function VideosScreen() {
           ListHeaderComponent={
             <View style={styles.cabecera}>
               <Text style={styles.subtitulo}>{T.videos.subtitulo}</Text>
+              {grupos.length > 0 && (
+                <View style={styles.cajaGrupos}>
+                  <Text style={styles.cajaGruposTitulo}>{T.torneoVideo.tituloRepetidos}</Text>
+                  {grupos.map((g) => (
+                    <Pressable
+                      key={g[0].id}
+                      onPress={() => abrirTorneo(g)}
+                      style={styles.grupoFila}
+                      accessibilityRole="button"
+                    >
+                      <Image source={{ uri: g[0].uri }} style={styles.grupoMiniatura} />
+                      <View style={styles.filaTextos}>
+                        <Text style={styles.grupoTitulo}>
+                          {T.torneoVideo.grupoEpoca(g.length, fechaConDia(g[0].creationTime))}
+                        </Text>
+                        <Text style={styles.filaFecha}>{T.torneoVideo.elegirElMejor}</Text>
+                      </View>
+                      <IconSymbol name="chevron.right" size={20} color={COLORES.textoSecundario} />
+                    </Pressable>
+                  ))}
+                </View>
+              )}
               {sinQuererPorMarcar.length > 0 && (
                 <View style={styles.cajaSinQuerer}>
                   <Text style={styles.cajaSinQuererTexto}>
@@ -224,7 +269,7 @@ export default function VideosScreen() {
             return (
               <View style={[styles.fila, marcado && styles.filaMarcada]}>
                 <Pressable
-                  onPress={() => setViendoId(item.id)}
+                  onPress={() => setViendoUri(item.uri)}
                   accessibilityRole="button"
                   accessibilityLabel={T.videos.verVideo}
                 >
@@ -273,7 +318,7 @@ export default function VideosScreen() {
         </View>
       )}
 
-      {viendoId && <VisorVideo videoId={viendoId} onClose={() => setViendoId(null)} />}
+      {viendoUri && <VisorVideo uri={viendoUri} onClose={() => setViendoUri(null)} />}
     </View>
   );
 }
@@ -309,6 +354,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORES.textoSecundario,
     textAlign: 'center',
+  },
+  cajaGrupos: {
+    backgroundColor: COLORES.acentoSuave,
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  cajaGruposTitulo: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORES.acentoOscuro,
+  },
+  grupoFila: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  grupoMiniatura: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: COLORES.borde,
+  },
+  grupoTitulo: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORES.acentoOscuro,
   },
   cajaSinQuerer: {
     backgroundColor: COLORES.superficie,

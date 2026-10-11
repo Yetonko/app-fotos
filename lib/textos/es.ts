@@ -62,6 +62,13 @@ export const es = {
     espacioLibre: (espacio: string, critico: boolean) =>
       `${critico ? 'Solo te quedan ' : 'Te quedan '}${espacio} libres`,
     elegidasHoy: (n: number) => `Llevas ${n}${n === 1 ? ' elegida' : ' elegidas'} hoy ✨`,
+    // Marcador del día: elegidas y espacio liberado (tamano vacío si 0)
+    progresoHoy: (elegidas: number, tamano: string) => {
+      const e = `${elegidas} ${elegidas === 1 ? 'elegida' : 'elegidas'}`;
+      if (!tamano) return `Llevas ${e} hoy ✨`;
+      if (elegidas === 0) return `Hoy has liberado ${tamano} ✨`;
+      return `Hoy: ${e} y ${tamano} liberados ✨`;
+    },
     tituloTarjeta: (fecha: string, n: number) => `${fecha} · ${n} fotos`,
     volverAElegir: 'Volver a elegir',
     revisarYLimpiar: 'Revisar y limpiar ✨',
@@ -188,13 +195,13 @@ export const es = {
     empezar: 'Empezar',
     paso1Titulo: 'Encuentra tu mejor foto\ny publícala',
     paso1Texto:
-      'Agrupamos las fotos parecidas de un mismo momento. Tú eliges la que más te gusta y la compartes al momento — sin vueltas. De paso, haces sitio para el siguiente.',
+      'Agrupamos las fotos y vídeos parecidos de un mismo momento. Tú eliges tu favorito y lo compartes al momento — sin vueltas. De paso, haces sitio para el siguiente.',
     paso2Titulo: 'Una foto cada vez',
     paso2Texto:
       'Vamos momento a momento, sin prisa. No borramos nada que tú no decidas: aquí tú tienes el control.',
     paso3Titulo: 'Tus fotos son solo tuyas',
     paso3Texto: (dispositivo: string) =>
-      `Todo pasa aquí, en tu ${dispositivo}. Ninguna foto sale de aquí: no hay servidores, no hay copias en la nube, no hay nadie más mirando.`,
+      `Todo pasa aquí, en tu ${dispositivo}. Ninguna foto ni vídeo sale de aquí: no hay servidores, no hay copias en la nube, no hay nadie más mirando.`,
   },
 
   // Pantalla de un álbum mensual (al tocar uno en Álbumes)
@@ -231,7 +238,8 @@ export const es = {
     // Foto elegida
     laElegida: '¡Esta es la elegida! ✨',
     guardadaEnAlbum: '✓ Ya está en tu álbum Fondly',
-    compartir: 'Compartir o publicar',
+    compartir: 'Editar o publicar',
+    notaCompartir: 'Se abre el menú del iPhone: elige Instagram, Edits o la app que uses.',
     // Solo si la elegida es una Live Photo: comparte su vídeo de 3 segundos
     enMovimiento: 'Publicarla en movimiento (vídeo de 3 s)',
     seguirConOtras: (n: number) =>
@@ -320,8 +328,56 @@ export const es = {
     nadaBorradoTexto: 'Tus vídeos siguen en el carrete, no ha cambiado nada.',
     errorBorrarTexto: 'Tus vídeos siguen en el carrete. Si querías borrarlos, inténtalo de nuevo.',
     cargandoVideo: 'Preparando el vídeo…',
-    errorVer: 'No hemos podido abrir este vídeo. Puedes verlo desde Fotos.',
+    errorVer: 'No hemos podido abrir este vídeo. Cierra y prueba otra vez en un momento.',
     cerrar: 'Cerrar',
+  },
+
+  // Etiquetar fotos a mano dentro de una época (por experiencias)
+  etiquetar: {
+    entrada: 'Etiqueta tus fotos',
+    entradaTexto: 'Ponles nombre para encontrarlas luego: un viaje, una boda…',
+    titulo: 'Etiqueta tus fotos',
+    subtitulo: (epoca: string) =>
+      `${epoca ? `${epoca}. ` : ''}Toca las fotos de una misma experiencia, o elige el día entero, y ponles nombre. No se borra nada.`,
+    vacio: 'No hay fotos en esta época.',
+    elegirDia: 'Elegir el día',
+    quitarDia: 'Quitar el día',
+    etiquetarN: (n: number) => (n === 1 ? 'Ponerle nombre a 1 foto' : `Ponerles nombre a ${n} fotos`),
+    modalTitulo: '¿Qué experiencia es?',
+    modalExplicacion: 'Así encontrarás estas fotos juntas cuando las busques.',
+    nombreAlbum: (nombre: string) => `Fondly · ${nombre}`,
+    hecho: (n: number, nombre: string, album: string) =>
+      `${n === 1 ? '1 foto' : `${n} fotos`} con el nombre «${nombre}».${album ? ` Las tienes juntas en el álbum «${album}» de Fotos, sin ocupar más espacio.` : ''}`,
+  },
+
+  // Torneo de vídeos del mismo rato
+  torneoVideo: {
+    sinVideos: 'Estos vídeos ya no están en tu carrete.',
+    salir: 'Salir',
+    tituloTorneo: '¿Cuál te gusta más?',
+    pista: 'Toca un vídeo para verlo con sonido. Aquí no se borra nada.',
+    progreso: (n: number, total: number) => `Elección ${n} de ${total}`,
+    esteMeGusta: 'Este',
+    tituloGanador: '¡Este es tu vídeo!',
+    verConSonido: 'Verlo con sonido',
+    editarOPublicar: 'Editar o publicar',
+    notaEditar:
+      'Se abre el menú del iPhone: publícalo en Instagram o ábrelo en tu app de edición (Edits, CapCut…).',
+    siguienteOtros: (n: number) =>
+      n === 1 ? 'Siguiente: repasar el otro vídeo' : `Siguiente: repasar los otros ${n}`,
+    volverAlGanador: 'Volver a mi vídeo',
+    tituloOtros: (n: number) => (n === 1 ? '¿Y el otro vídeo?' : `¿Y los otros ${n} vídeos?`),
+    pistaOtros:
+      'Se quedan todos, salvo los que marques para borrar. Toca uno para verlo antes de decidir.',
+    liberaras: (tamano: string) => `Liberarás unos ${tamano}`,
+    borrarTexto: (n: number, tamano: string, recuperacion: string) =>
+      `${n === 1 ? 'Se borrará 1 vídeo' : `Se borrarán ${n} vídeos`}${tamano ? ` (unos ${tamano})` : ''}. Tu vídeo elegido y los demás se quedan. ${recuperacion}`,
+    quedarmelosTodos: 'Quedármelos todos',
+    // Entradas al torneo
+    avisoAhora: (n: number) => `Tienes ${n} vídeos de este rato`,
+    elegirElMejor: 'Elige el mejor para publicarlo',
+    grupoEpoca: (n: number, fecha: string) => `${n} vídeos seguidos · ${fecha}`,
+    tituloRepetidos: 'Vídeos del mismo rato',
   },
 
   periodos: {

@@ -20,7 +20,8 @@ import { GrupoFotos } from '@/lib/agrupar';
 import { detectarRafagas } from '@/lib/escaneo';
 import { obtenerGanadora, registrarGrupo } from '@/lib/gruposElegidos';
 import { inicializarRevisados, esRevisado } from '@/lib/revisados';
-import { inicializarProgreso, obtenerProgresoHoy } from '@/lib/progreso';
+import { inicializarProgreso, obtenerProgresoHoy, sumarLiberado } from '@/lib/progreso';
+import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
 import { estadoUso } from '@/lib/uso';
 import { inicializarEspacio, obtenerEspacioCache, type EspacioLibre } from '@/lib/espacio';
 import {
@@ -276,7 +277,11 @@ export default function HomeScreen() {
   // de fotos-recordatorio (ej. una foto de un ticket o una pizarra) donde
   // ninguna merece quedarse. Distinto del borrado que hace seleccion.tsx,
   // que siempre parte de haber elegido una ganadora primero.
+  // Mientras se mide y se borra un momento no se puede lanzar otro borrado.
+  const borrandoRef = useRef(false);
+
   const descartarGrupoCompleto = (item: GrupoConDistancias) => {
+    if (borrandoRef.current) return;
     const idsTodo = item.candidatas.map((c) => c.id);
     Alert.alert(
       T.comun.borrarTodo.titulo,
@@ -287,7 +292,11 @@ export default function HomeScreen() {
           text: T.comun.borrarTodo.boton,
           style: 'destructive',
           onPress: async () => {
+            if (borrandoRef.current) return;
+            borrandoRef.current = true;
             try {
+              // Se mide antes de borrar, para el marcador de hoy.
+              const tamanoLiberado = await calcularTamanoTotal(idsTodo);
               const borradoOk = await MediaLibrary.deleteAssetsAsync(idsTodo);
               if (!borradoOk) {
                 Alert.alert(
@@ -297,11 +306,15 @@ export default function HomeScreen() {
                 return;
               }
               setGrupos((actuales) => actuales.filter((g) => g.grupoId !== item.grupoId));
+              await sumarLiberado(tamanoLiberado).catch(() => {});
+              setTick((t) => t + 1);
             } catch {
               Alert.alert(
                 T.comun.borrarTodo.errorTitulo,
                 T.comun.borrarTodo.errorTexto
               );
+            } finally {
+              borrandoRef.current = false;
             }
           },
         },
@@ -326,6 +339,8 @@ export default function HomeScreen() {
 
   const grupoEditandoData = grupos.find((g) => g.grupoId === grupoEditando);
 
+  const progresoHoy = obtenerProgresoHoy();
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
       <Text style={styles.titulo}>{T.home.titulo}</Text>
@@ -340,9 +355,9 @@ export default function HomeScreen() {
               {T.home.espacioLibre(espacio.texto, espacio.critico)}
             </Text>
           )}
-          {obtenerProgresoHoy().elegidas > 0 && (
+          {(progresoHoy.elegidas > 0 || progresoHoy.bytesLiberados > 0) && (
             <Text style={styles.gananciaTexto}>
-              {T.home.elegidasHoy(obtenerProgresoHoy().elegidas)}
+              {T.home.progresoHoy(progresoHoy.elegidas, formatearTamano(progresoHoy.bytesLiberados))}
             </Text>
           )}
         </View>

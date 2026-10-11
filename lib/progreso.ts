@@ -87,7 +87,17 @@ export async function obtenerLiberadoTotal(): Promise<number> {
   return liberadoTotal;
 }
 
-export async function sumarLiberado(bytes: number): Promise<void> {
+// Las sumas van en fila, una detrás de otra: dos borrados casi a la vez no
+// se pisan el contador.
+let cola: Promise<void> = Promise.resolve();
+
+export function sumarLiberado(bytes: number): Promise<void> {
+  const tarea = cola.then(() => sumarLiberadoAhora(bytes));
+  cola = tarea.catch(() => {});
+  return tarea;
+}
+
+async function sumarLiberadoAhora(bytes: number): Promise<void> {
   if (bytes <= 0) return;
   invalidarEstimaciones();
   invalidarEstimacionesVideo();
@@ -97,16 +107,17 @@ export async function sumarLiberado(bytes: number): Promise<void> {
   } catch {
     // Se mantiene en memoria esta sesión.
   }
+  // También al marcador de hoy de Inicio, venga de donde venga el borrado.
+  const actual = await cargarCache();
+  const base = actual.fecha === hoyISO() ? actual : vacioDeHoy();
+  cache = { ...base, bytesLiberados: base.bytesLiberados + bytes };
+  await persistir();
 }
 
 export async function sumarEleccion(bytesLiberados: number): Promise<void> {
   await sumarLiberado(bytesLiberados);
   const actual = await cargarCache();
   const base = actual.fecha === hoyISO() ? actual : vacioDeHoy();
-  cache = {
-    fecha: hoyISO(),
-    elegidas: base.elegidas + 1,
-    bytesLiberados: base.bytesLiberados + Math.max(0, bytesLiberados),
-  };
+  cache = { ...base, elegidas: base.elegidas + 1 };
   await persistir();
 }

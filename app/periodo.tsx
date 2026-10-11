@@ -97,6 +97,10 @@ export default function PeriodoScreen() {
     };
   }, [desde, hasta, tick]);
 
+  const abrirEtiquetar = () => {
+    router.push({ pathname: '/etiquetar', params: { desde, hasta, etiqueta } });
+  };
+
   const abrirVideos = () => {
     router.push({ pathname: '/videos', params: { desde, hasta, etiqueta } });
   };
@@ -276,6 +280,15 @@ export default function PeriodoScreen() {
         </Pressable>
       )}
 
+      <Pressable onPress={abrirEtiquetar} style={styles.cajaEtiquetar} accessibilityRole="button">
+        <IconSymbol name="pencil" size={22} color={COLORES.acentoOscuro} />
+        <View style={styles.cajaVideosTextos}>
+          <Text style={styles.cajaEtiquetarTitulo}>{T.etiquetar.entrada}</Text>
+          <Text style={styles.cajaVideosTexto}>{T.etiquetar.entradaTexto}</Text>
+        </View>
+        <IconSymbol name="chevron.right" size={20} color={COLORES.textoSecundario} />
+      </Pressable>
+
       {status !== '¡Listo!' && (
         <View style={styles.centrado}>
           {pilaEscaneo.length > 0 && (
@@ -408,6 +421,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 14,
+  },
+  cajaEtiquetar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORES.superficie,
+    borderWidth: 1,
+    borderColor: COLORES.borde,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  cajaEtiquetarTitulo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORES.acentoOscuro,
   },
   cajaVideosTextos: {
     flex: 1,

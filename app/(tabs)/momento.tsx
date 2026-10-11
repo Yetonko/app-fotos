@@ -1,15 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Alert, Share, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 
 import { fotosDeVentana, ordenarPorTiempo, VentanaMomento, FotoMomento } from '@/lib/momento-rapido';
 import { guardarEnAlbumFavoritas } from '@/lib/album';
+import { sumarLiberado } from '@/lib/progreso';
+import { calcularTamanoTotal, formatearTamano } from '@/lib/tamano';
 import { ZoomablePhotoModal } from '@/components/zoomable-photo-modal';
 import { VisorVideo } from '@/components/visor-video';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { prepararTorneoVideo } from '@/lib/torneo-video';
 import {
   borrarCopiaCompartida,
   formatearDuracion,
@@ -45,7 +48,7 @@ export default function MomentoScreen() {
   const [descartadas, setDescartadas] = useState<string[]>([]);
 
   const [ampliadaId, setAmpliadaId] = useState<string | null>(null);
-  const [viendoVideoId, setViendoVideoId] = useState<string | null>(null);
+  const [viendoVideoUri, setViendoVideoUri] = useState<string | null>(null);
   const [publicando, setPublicando] = useState(false);
   // Guarda inmediata contra el doble toque en Publicar (copiar un vídeo
   // tarda y el botón tarda un instante en desactivarse).
@@ -54,10 +57,27 @@ export default function MomentoScreen() {
   // y vuelve a publicar, no se copian otra vez (cada copia duplica la foto).
   const guardadasEnAlbumRef = useRef(new Set<string>());
 
+  // Al volver (p. ej. del torneo de vídeos, donde puede haber borrado),
+  // se vuelve a mirar el carrete.
+  const [recarga, setRecarga] = useState(0);
+  const primeraVez = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (primeraVez.current) {
+        primeraVez.current = false;
+        return;
+      }
+      setRecarga((n) => n + 1);
+    }, [])
+  );
+  // Solo se enseña el "cargando" al cambiar de ventana, no al volver.
+  const ventanaCargada = useRef<VentanaMomento | null>(null);
+
   // Carga las fotos cada vez que cambia la ventana elegida.
   useEffect(() => {
     let cancelado = false;
-    setCargando(true);
+    if (ventanaCargada.current !== ventana) setCargando(true);
+    ventanaCargada.current = ventana;
     fotosDeVentana(ventana)
       .then((res) => {
         if (!cancelado) setFotos(res);
@@ -71,7 +91,7 @@ export default function MomentoScreen() {
     return () => {
       cancelado = true;
     };
-  }, [ventana]);
+  }, [ventana, recarga]);
 
   const alternarMarcada = (id: string) => {
     setDescartadas((d) => d.filter((x) => x !== id)); // marcar quita el descarte
@@ -98,8 +118,16 @@ export default function MomentoScreen() {
     return T.comun.fotosYVideos(lista.length - nv, nv);
   };
 
+  // Con 2 o más vídeos del rato, se ofrece elegir el mejor con un torneo.
+  // (sin los que ya ha elegido para publicar: esos no se tocan).
+  const videosVisibles = visibles.filter((f) => f.esVideo && !marcadas.includes(f.id));
+  const abrirTorneoVideos = () => {
+    prepararTorneoVideo(videosVisibles);
+    router.push('/torneo-video');
+  };
+
   const abrir = (foto: FotoMomento) => {
-    if (foto.esVideo) setViendoVideoId(foto.id);
+    if (foto.esVideo) setViendoVideoUri(foto.uri);
     else setAmpliadaId(foto.id);
   };
 
@@ -194,10 +222,15 @@ export default function MomentoScreen() {
           text: T.momento.borrar,
           style: 'destructive',
           onPress: async () => {
+            const ids = fotosDescartadas.map((f) => f.id);
+            let tamanoLiberado = 0;
             try {
-              const borradoOk = await MediaLibrary.deleteAssetsAsync(
-                fotosDescartadas.map((f) => f.id)
+              // Se mide antes de borrar (después ya no se puede).
+              // (sin los vídeos que el iPhone tendría que convertir enteros).
+              tamanoLiberado = await calcularTamanoTotal(
+                fotosDescartadas.filter((f) => !f.noMedible).map((f) => f.id)
               );
+              const borradoOk = await MediaLibrary.deleteAssetsAsync(ids);
               if (!borradoOk) {
                 // Canceló el aviso del sistema: no se ha borrado nada.
                 Alert.alert(
@@ -210,7 +243,15 @@ export default function MomentoScreen() {
               Alert.alert(T.comun.borrarTodo.errorTitulo, T.comun.borrarTodo.errorTexto);
               return;
             }
-            router.back();
+            await sumarLiberado(tamanoLiberado).catch(() => {});
+            const tamanoTexto = formatearTamano(tamanoLiberado);
+            if (tamanoTexto) {
+              Alert.alert(T.comun.listo, T.seleccion.hasLiberado(tamanoTexto), [
+                { text: T.momento.entendido, onPress: () => router.back() },
+              ]);
+            } else {
+              router.back();
+            }
           },
         },
       ]
@@ -255,6 +296,22 @@ export default function MomentoScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.grid}>
+          {videosVisibles.length >= 2 && (
+            <Pressable
+              onPress={abrirTorneoVideos}
+              style={styles.cajaTorneo}
+              accessibilityRole="button"
+            >
+              <IconSymbol name="video.fill" size={24} color={COLORES.acentoOscuro} />
+              <View style={styles.cajaTorneoTextos}>
+                <Text style={styles.cajaTorneoTitulo}>
+                  {T.torneoVideo.avisoAhora(videosVisibles.length)}
+                </Text>
+                <Text style={styles.cajaTorneoTexto}>{T.torneoVideo.elegirElMejor}</Text>
+              </View>
+              <IconSymbol name="chevron.right" size={20} color={COLORES.textoSecundario} />
+            </Pressable>
+          )}
           {visibles.map((foto) => {
             const marcada = marcadas.includes(foto.id);
             return (
@@ -320,8 +377,8 @@ export default function MomentoScreen() {
         onElegir={(foto) => alternarMarcada(foto.id)}
       />
 
-      {viendoVideoId && (
-        <VisorVideo videoId={viendoVideoId} onClose={() => setViendoVideoId(null)} />
+      {viendoVideoUri && (
+        <VisorVideo uri={viendoVideoUri} onClose={() => setViendoVideoUri(null)} />
       )}
     </View>
   );
@@ -403,6 +460,30 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 14,
     backgroundColor: COLORES.borde,
+  },
+  cajaTorneo: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORES.acentoSuave,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  cajaTorneoTextos: {
+    flex: 1,
+    gap: 2,
+  },
+  cajaTorneoTitulo: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORES.acentoOscuro,
+  },
+  cajaTorneoTexto: {
+    fontSize: 13,
+    color: COLORES.acentoOscuro,
   },
   insigniaVideo: {
     position: 'absolute',

@@ -35,6 +35,10 @@ const SUBTIPOS_NO_MEDIBLES: MediaLibrary.MediaSubtype[] = [
   'spatialMedia',
 ];
 
+export function esNoMedible(subtipos?: MediaLibrary.MediaSubtype[]): boolean {
+  return !!subtipos?.some((t) => SUBTIPOS_NO_MEDIBLES.includes(t));
+}
+
 export function aVideo(a: MediaLibrary.Asset): VideoCarrete {
   return {
     id: a.id,
@@ -44,7 +48,7 @@ export function aVideo(a: MediaLibrary.Asset): VideoCarrete {
     duracion: a.duration ?? 0,
     ancho: a.width,
     alto: a.height,
-    noMedible: !!a.mediaSubtypes?.some((t) => SUBTIPOS_NO_MEDIBLES.includes(t)),
+    noMedible: esNoMedible(a.mediaSubtypes),
   };
 }
 
@@ -131,27 +135,12 @@ export async function resumenVideosRango(
   }
 }
 
-// Copias que deja la librería de fotos al abrir vídeos de cámara lenta o
-// editados. Solo sirven en el momento: se borran para no ocupar espacio.
-const CARPETA_EXPORTACIONES = `${FileSystem.cacheDirectory}MediaLibrary/`;
-
-export async function limpiarExportaciones(): Promise<void> {
-  await FileSystem.deleteAsync(CARPETA_EXPORTACIONES, { idempotent: true }).catch(() => {});
-}
-
 // "0:04", "1:23", "12:05"
 export function formatearDuracion(segundos: number): string {
   const total = Math.max(0, Math.round(segundos));
   const min = Math.floor(total / 60);
   const seg = total % 60;
   return `${min}:${String(seg).padStart(2, '0')}`;
-}
-
-// Dirección del vídeo para reproducirlo dentro de la app. Si está solo en
-// iCloud, el iPhone lo descarga primero (puede tardar).
-export async function direccionParaVer(id: string): Promise<string | null> {
-  const info = await MediaLibrary.getAssetInfoAsync(id);
-  return info.localUri ?? null;
 }
 
 // Para compartir, se hace una copia temporal dentro de la app: así el menú
@@ -182,4 +171,33 @@ export async function prepararVideoParaCompartir(v: {
 export async function borrarCopiaCompartida(url: string): Promise<void> {
   if (!url.startsWith(CARPETA_COMPARTIR)) return; // nunca toca nada fuera
   await FileSystem.deleteAsync(url, { idempotent: true }).catch(() => {});
+}
+
+// Cuánto ocupa (aprox.) cada vídeo de una lista y en total. Los que se
+// pueden medir se miden; los demás (cámara lenta, Cine…) se estiman por su
+// duración con la media de los medidos. Siempre se enseña como "unos X".
+export async function tamanosAproximados(
+  videos: { id: string; duracion: number; noMedible: boolean }[]
+): Promise<{ porId: Record<string, number>; total: number; totalMedido: number }> {
+  const porId: Record<string, number> = {};
+  let bytesMedidos = 0;
+  let segundosMedidos = 0;
+  for (const v of videos) {
+    if (v.noMedible) continue;
+    const t = await tamanoDeFoto(v.id);
+    if (t) {
+      porId[v.id] = t;
+      bytesMedidos += t;
+      segundosMedidos += Math.max(v.duracion, 0.1);
+    }
+  }
+  const bytesPorSegundo = segundosMedidos > 0 ? bytesMedidos / segundosMedidos : 0;
+  for (const v of videos) {
+    if (!(v.id in porId) && v.noMedible && bytesPorSegundo > 0) {
+      porId[v.id] = Math.round(bytesPorSegundo * Math.max(v.duracion, 0.1));
+    }
+  }
+  const total = Object.values(porId).reduce((a, b) => a + b, 0);
+  // totalMedido: solo lo medido de verdad (lo que se suma al contador).
+  return { porId, total, totalMedido: bytesMedidos };
 }
