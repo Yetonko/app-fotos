@@ -141,7 +141,9 @@ export default function Paywall() {
       {esVoluntario ? (
         <>
           <Text style={estilos.titulo}>{T.paywall.tituloVoluntario}</Text>
-          <Text style={estilos.subtitulo}>{T.paywall.subtituloVoluntario}</Text>
+          <Text style={[estilos.subtitulo, estilos.subtituloVoluntario]}>
+            {T.paywall.subtituloVoluntario}
+          </Text>
         </>
       ) : (
         <>
@@ -221,6 +223,10 @@ const estilos = StyleSheet.create({
     color: '#3B2A28',
     textAlign: 'center',
     marginBottom: 4,
+  },
+  // Sin la línea del ciclo, el subtítulo deja el mismo aire antes de las tarjetas
+  subtituloVoluntario: {
+    marginBottom: 32,
   },
   ciclo: {
     fontSize: 13,
