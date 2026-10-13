@@ -8,7 +8,10 @@ import { T } from '@/lib/i18n';
 
 // ── Pantalla de paywall ────────────────────────────
 // Se recibe vía params:
-//   modo: 'gracia' | 'bloqueado'
+//   modo: 'gracia' | 'bloqueado' | 'voluntario'
+//         ('voluntario' = abierto por la usuaria desde "Elegidas": permite ver
+//          precios, comprar y restaurar en cualquier momento; también es lo que
+//          necesita el revisor de Apple para encontrar las compras)
 //   selecciones: número de selecciones usadas
 //   diasRestantes: días que faltan para resetear el ciclo
 //   mbLiberados: MB liberados este ciclo (opcional, 0 si no se tiene)
@@ -16,7 +19,7 @@ import { T } from '@/lib/i18n';
 export default function Paywall() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    modo: 'gracia' | 'bloqueado';
+    modo: 'gracia' | 'bloqueado' | 'voluntario';
     grupoId: string;
     selecciones: string;
     diasRestantes: string;
@@ -29,6 +32,7 @@ export default function Paywall() {
   const mbLiberados = Number(params.mbLiberados ?? 0);
   const grupoId = params.grupoId ?? '';
   const esBloqueo = modo === 'bloqueado';
+  const esVoluntario = modo === 'voluntario';
 
   // Precios reales de la tienda (moneda y formato del pais de la usuaria).
   // Si no cargan, se mantiene el texto de siempre para que nunca quede vacio.
@@ -117,7 +121,11 @@ export default function Paywall() {
   }
 
   function cerrar() {
-    if (esBloqueo) {
+    if (esVoluntario) {
+      // Abierto desde "Elegidas": vuelve a donde estaba
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
+    } else if (esBloqueo) {
       // En bloqueo real: vuelve a Home, no puede iniciar torneo
       router.replace('/');
     } else {
@@ -130,9 +138,18 @@ export default function Paywall() {
     <View style={estilos.fondo}>
       {/* ── Celebración ── */}
       <Text style={estilos.emoji}>✨</Text>
-      <Text style={estilos.titulo}>{T.paywall.titulo}</Text>
-      <Text style={estilos.subtitulo}>{T.paywall.subtitulo(selecciones, mbLiberados)}</Text>
-      <Text style={estilos.ciclo}>{T.paywall.ciclo(diasRestantes)}</Text>
+      {esVoluntario ? (
+        <>
+          <Text style={estilos.titulo}>{T.paywall.tituloVoluntario}</Text>
+          <Text style={estilos.subtitulo}>{T.paywall.subtituloVoluntario}</Text>
+        </>
+      ) : (
+        <>
+          <Text style={estilos.titulo}>{T.paywall.titulo}</Text>
+          <Text style={estilos.subtitulo}>{T.paywall.subtitulo(selecciones, mbLiberados)}</Text>
+          <Text style={estilos.ciclo}>{T.paywall.ciclo(diasRestantes)}</Text>
+        </>
+      )}
 
       {/* ── Opciones de compra ── */}
       <View style={estilos.tarjetaDestacada}>

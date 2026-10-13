@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
-import { FlatList, StyleSheet, View, Text } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 
@@ -82,7 +82,19 @@ export default function AlbumesScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14 }]}>
-      <Text style={styles.titulo}>{T.albumes.titulo}</Text>
+      <View style={styles.cabecera}>
+        <Text style={styles.titulo}>{T.albumes.titulo}</Text>
+        {/* Acceso fijo a compras y "Restaurar compras" (lo exige Apple) */}
+        <Pressable
+          style={styles.botonPro}
+          hitSlop={8}
+          onPress={() =>
+            router.push({ pathname: '/paywall' as any, params: { modo: 'voluntario' } })
+          }
+        >
+          <Text style={styles.textoBotonPro}>{T.albumes.accesoPro}</Text>
+        </Pressable>
+      </View>
 
       {!cargando && albumes.length === 0 && (
         <View style={styles.vacioContenedor}>
@@ -127,9 +139,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: COLORES.fondo,
   },
+  cabecera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  botonPro: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: COLORES.superficie,
+    borderWidth: 1,
+    borderColor: COLORES.borde,
+  },
+  textoBotonPro: {
+    color: COLORES.acentoTexto,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   titulo: {
     textAlign: 'left',
-    marginBottom: 16,
     color: COLORES.texto,
     fontSize: 28,
     fontWeight: '700',

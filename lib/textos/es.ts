@@ -117,6 +117,9 @@ export const es = {
 
   paywall: {
     titulo: '¡Gran mes!',
+    // Paywall abierto por la usuaria desde "Elegidas" (sin haber agotado nada)
+    tituloVoluntario: 'Fondly Pro',
+    subtituloVoluntario: 'Elige sin límites o amplía tus selecciones cuando quieras',
     subtitulo: (selecciones: number, mbLiberados: number) =>
       `Has elegido tus ${selecciones} mejores fotos` +
       (mbLiberados > 0 ? ` y liberado ${mbLiberados} MB` : ''),
@@ -155,6 +158,7 @@ export const es = {
     vacio:
       'Aquí se guardarán tus fotos elegidas, mes a mes. Empieza eligiendo tu primer momento en Inicio.',
     fotosElegidas: (n: number) => `${n} ${n === 1 ? 'foto elegida' : 'fotos elegidas'}`,
+    accesoPro: '✨ Fondly Pro',
   },
 
   // Nombres de las pestañas de abajo
